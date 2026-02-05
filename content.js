@@ -403,6 +403,13 @@
         while (scrollCount < maxScrolls && noChangeCount < 5) {
             if (abortController?.signal?.aborted) break;
 
+            // === PENDING DONE HANDLING ===
+            // If we are waiting for user to confirm "Looks Done" or "Route Change", pause here
+            if (isPendingDone) {
+                await sleep(1000);
+                continue;
+            }
+
             // === ROUTE CHANGE DETECTION ===
             // Check if we've navigated away from the search page
             if (window.location.pathname !== startingPathname) {
@@ -1568,7 +1575,9 @@
         exportBtn.textContent = "📜 Export Tweets";
         exportBtn.style.cssText = btnStyle("linear-gradient(135deg, #1d9bf0 0%, #1a8cd8 100%)");
         exportBtn.onclick = () => {
-            if (!isExporting) {
+            if (isExporting) {
+                handleCancelExport();
+            } else {
                 handleScrollExport();
             }
         };
@@ -1593,12 +1602,18 @@
     function updateButton(text, isError = false) {
         if (!exportButton) return;
 
-        // Find the export button inside container
+        // Skip updates if we are showing a special interaction UI
+        if (isPendingDone ||
+            document.getElementById("twexport-rl-controls") ||
+            document.getElementById("twexport-done-controls") ||
+            document.getElementById("twexport-route-controls")) {
+            return;
+        }
+
         const exportBtn = document.getElementById("twexport-export-btn");
         if (exportBtn) {
             exportBtn.textContent = text;
         } else {
-            // Fallback for when we've replaced the content (rate limit screens, etc.)
             exportButton.textContent = text;
         }
 
