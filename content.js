@@ -234,7 +234,17 @@
 
     // === RESUME FROM FILE STATE ===
     let previousTweets = []; // Tweets loaded from a previous export file
+    let previousExportMeta = null; // Metadata loaded from previous export file
     let isResumeMode = false; // Whether we're resuming from a previous export
+    const RESUME_STORAGE_KEY = "twexport_resume_payload";
+    const RESUME_STORAGE_MAX_AGE_MS = 6 * 60 * 60 * 1000; // 6 hours
+    const RESUME_DB_NAME = "twexport_resume_db";
+    const RESUME_DB_VERSION = 1;
+    const RESUME_DB_STORE = "resume_payloads";
+    const RESUME_DB_KEY = "active";
+
+    // Tracks the last moment we saw timeline activity that should reset "Looks Done" idle detection.
+    let timelineActivityAt = Date.now();
 
     // === RATE LIMIT TRACKING ===
     let rateLimitState = {
@@ -325,6 +335,7 @@
 
         if (event.data?.type === 'TWEXPORT_INTERCEPTED_RESPONSE') {
             interceptedResponses.push(event.data.payload);
+            markTimelineActivity();
 
             // Update rate limit info from headers
             if (event.data.payload?.rateLimitInfo) {
@@ -400,7 +411,7 @@
         const startingUrl = window.location.href;
         const startingPathname = window.location.pathname;
 
-        while (scrollCount < maxScrolls && noChangeCount < 5) {
+        while (scrollCount < maxScrolls && noChangeCount < 8) {
             if (abortController?.signal?.aborted) break;
 
             // === PENDING DONE HANDLING ===
@@ -435,13 +446,50 @@
             }
 
             // COOLDOWN MODE (orange) - Every 20 requests, pause for 3 minutes
+            // COOLDOWN MODE (orange)
             if (rateLimitState.mode === 'cooldown') {
-                const cooldownTime = 180000; // 3 minutes
-                logInfo(`Cooldown mode: pausing for 3 minutes (${rateLimitState.requestCount} requests made)`);
-                updateButton(`🟠 Cooldown 3min... (${interceptedResponses.length} batches)`);
-                await sleep(cooldownTime);
+                let cooldownTime = 180000; // Default 3 minutes
+                let reason = `batch pacing (${rateLimitState.requestCount} requests)`;
+
+                // If actual API limit is low, wait for the full reset time
+                if (rateLimitState.remaining < 10 && rateLimitState.resetTime > 0) {
+                    const nowSec = Date.now() / 1000;
+                    const waitSec = rateLimitState.resetTime - nowSec;
+                    
+                    if (waitSec > 0) {
+                        // Wait until reset + 10s buffer
+                        cooldownTime = (waitSec * 1000) + 10000;
+                        reason = `API limit low (${rateLimitState.remaining} left), reset at ${new Date(rateLimitState.resetTime * 1000).toLocaleTimeString()}`;
+                    }
+                }
+
+                logInfo(`Cooldown mode: pausing for ${Math.round(cooldownTime/1000)}s due to ${reason}`);
+
+                showCooldownUI(cooldownTime);
+
+                // Wait loop (interruptible)
+                // Use wall-clock time to be resilient against background tab throttling
+                const checkInterval = 1000;
+                const endTime = Date.now() + cooldownTime;
+
+                while (Date.now() < endTime && isExporting && !window.twExportSkipCooldown) {
+                    const remaining = Math.max(0, endTime - Date.now());
+                    updateCooldownTimer(remaining);
+                    await sleep(checkInterval);
+                }
+
+                // Reset skip flag
+                if (window.twExportSkipCooldown) {
+                    logInfo("Cooldown skipped by user");
+                    window.twExportSkipCooldown = false;
+                }
+
+                removeCooldownUI();
+
                 rateLimitState.mode = 'normal';
                 rateLimitState.requestCount = 0; // Reset counter after cooldown
+                noChangeCount = 0;
+                markTimelineActivity();
                 updateButton(`🟢 Resuming...`);
                 await sleep(1000);
             }
@@ -491,14 +539,14 @@
                 // Wait for recovery
                 await sleep(5000);
                 noChangeCount = 0; // Reset counter, don't give up
+                markTimelineActivity();
                 continue; // Skip end-of-timeline check this iteration
             }
 
             // Smarter check for "end of timeline"
             const currentHeight = document.body.scrollHeight;
             const responsesCaptured = interceptedResponses.length;
-            const lastResponseTime = interceptedResponses[interceptedResponses.length - 1]?.timestamp || 0;
-            const timeSinceLastResponse = Date.now() - lastResponseTime;
+            const timeSinceLastActivity = Date.now() - timelineActivityAt;
 
             // Only consider "end" if:
             // 1. We've done at least 10 scrolls
@@ -506,7 +554,7 @@
             // 3. Scroll height hasn't changed
             // 4. No error states on page
             if (responsesCaptured > 0 && scrollCount > 10 &&
-                timeSinceLastResponse > 30000 &&
+                timeSinceLastActivity > 30000 &&
                 currentHeight === lastScrollHeight) {
 
                 // Instead of auto-completing, show "Looks Done" UI
@@ -521,18 +569,16 @@
                 continue;
             }
 
-            if (responsesCaptured === 0) {
-                // Fallback to height check if no data yet
-                if (currentHeight === lastScrollHeight) {
-                    noChangeCount++;
-                    logDebug(`No new content (attempt ${noChangeCount}/5)`);
-                } else {
-                    noChangeCount = 0;
-                    lastScrollHeight = currentHeight;
+            // Improved end detection:
+            // Always increment counter if height is static, regardless of network activity
+            if (currentHeight === lastScrollHeight) {
+                noChangeCount++;
+                if (noChangeCount > 3) {
+                    logDebug(`No height change (attempt ${noChangeCount}/8)`);
                 }
             } else {
                 noChangeCount = 0;
-                lastScrollHeight = currentHeight; // Track height changes
+                lastScrollHeight = currentHeight;
             }
 
             // Update button with mode indicator
@@ -585,6 +631,7 @@
     let abortController = null;
     let exportButton = null;
     let logs = [];
+    let pendingAutoStartContext = null;
 
     // ========== LOGGING ==========
     function log(level, message, data = null) {
@@ -622,6 +669,23 @@
     // ========== UTILITIES ==========
     function sleep(ms) {
         return new Promise((resolve) => setTimeout(resolve, ms));
+    }
+
+    function markTimelineActivity() {
+        timelineActivityAt = Date.now();
+    }
+
+    function getEarliestIsoDate(...values) {
+        let earliest = null;
+        for (const value of values) {
+            if (!value) continue;
+            const date = new Date(value);
+            if (Number.isNaN(date.getTime())) continue;
+            if (!earliest || date < earliest) {
+                earliest = date;
+            }
+        }
+        return earliest ? earliest.toISOString() : null;
     }
 
     function formatDate(dateString) {
@@ -1642,6 +1706,121 @@
             exportButton = null;
         }
     }
+    // ========== COOLDOWN UI HANDLING ==========
+    let cooldownInterval = null;
+
+    function showCooldownUI(duration) {
+        if (!exportButton) return;
+
+        // Clear content for custom UI
+        exportButton.innerHTML = '';
+
+        // Cooldown container
+        exportButton.style.cssText = `
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            z-index: 9999;
+            background: linear-gradient(135deg, #FF9800 0%, #E65100 100%);
+            border: 1px solid #FFC107;
+            border-radius: 12px;
+            padding: 14px;
+            min-width: 220px;
+            box-shadow: 0 8px 24px rgba(255, 152, 0, 0.4);
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            color: white;
+        `;
+
+        // Header
+        const header = document.createElement("div");
+        header.style.cssText = "display: flex; align-items: center; gap: 8px; font-weight: bold; font-size: 14px;";
+        header.innerHTML = `<span style="font-size: 18px;">⏳</span> Rate Limit Cooldown`;
+        exportButton.appendChild(header);
+
+        // Timer display
+        const timerDisplay = document.createElement("div");
+        timerDisplay.id = "twexport-cooldown-timer";
+        timerDisplay.style.cssText = "font-size: 24px; font-weight: bold; text-align: center; margin: 4px 0;";
+        timerDisplay.textContent = formatTime(duration);
+        exportButton.appendChild(timerDisplay);
+
+        // Controls container
+        const controls = document.createElement("div");
+        controls.id = "twexport-rl-controls";
+        controls.style.cssText = "display: flex; gap: 8px;";
+
+        // Skip Button
+        const btnSkip = document.createElement("button");
+        btnSkip.textContent = "⚡ Skip Wait";
+        btnSkip.style.cssText = `
+            flex: 1;
+            padding: 8px;
+            border: none;
+            background: rgba(255, 255, 255, 0.2);
+            color: white;
+            border-radius: 6px;
+            font-weight: 600;
+            font-size: 12px;
+            cursor: pointer;
+            transition: background 0.2s;
+        `;
+        btnSkip.onmouseover = () => btnSkip.style.background = "rgba(255, 255, 255, 0.3)";
+        btnSkip.onmouseout = () => btnSkip.style.background = "rgba(255, 255, 255, 0.2)";
+        btnSkip.onclick = () => {
+            logInfo("User clicked Skip Wait");
+            window.twExportSkipCooldown = true;
+        };
+
+        // Stop Button
+        const btnStop = document.createElement("button");
+        btnStop.textContent = "🛑 Stop";
+        btnStop.style.cssText = `
+            flex: 0 0 60px;
+            padding: 8px;
+            border: none;
+            background: rgba(0, 0, 0, 0.2);
+            color: white;
+            border-radius: 6px;
+            font-weight: 600;
+            font-size: 12px;
+            cursor: pointer;
+        `;
+        btnStop.onclick = () => {
+            if (confirm("Stop export and save current progress?")) {
+                window.twExportSkipCooldown = true; // Break wait loop
+                handleCancelExport();
+            }
+        };
+
+        controls.appendChild(btnSkip);
+        controls.appendChild(btnStop);
+        exportButton.appendChild(controls);
+    }
+
+    function updateCooldownTimer(ms) {
+        const el = document.getElementById("twexport-cooldown-timer");
+        if (el) el.textContent = formatTime(ms);
+    }
+
+    function removeCooldownUI() {
+        if (exportButton) {
+            // Remove the container completely so createButton rebuilds it fresh
+            exportButton.remove();
+            exportButton = null;
+        }
+        createButton();
+    }
+
+    function formatTime(ms) {
+        const totalSec = Math.ceil(ms / 1000);
+        const m = Math.floor(totalSec / 60);
+        const s = totalSec % 60;
+        return `${m}:${s.toString().padStart(2, '0')}`;
+    }
+
     // ========== "LOOKS DONE" HANDLING ==========
     function handleLooksDone(batchCount) {
         if (!exportButton) return;
@@ -1721,6 +1900,7 @@
         btnContinue.onclick = (e) => {
             e.stopPropagation();
             isPendingDone = false;
+            markTimelineActivity();
             // Reset and continue scrolling
             updateButton("🟢 Continuing...");
             logInfo("User chose to continue scrolling");
@@ -1824,6 +2004,7 @@
             e.stopPropagation();
             window.history.back();
             isPendingDone = false;
+            markTimelineActivity();
             updateButton("🟢 Returning...");
             logInfo("User clicked Go Back");
         };
@@ -1867,6 +2048,276 @@
     }
 
     // ========== RESUME FROM FILE ==========
+    function extractTweetsFromExportData(data) {
+        if (!data) return [];
+        if (Array.isArray(data.items)) return data.items;
+        if (Array.isArray(data.tweets)) return data.tweets;
+        if (Array.isArray(data)) return data;
+        return [];
+    }
+
+    function clearInMemoryResumeState() {
+        previousTweets = [];
+        previousExportMeta = null;
+        isResumeMode = false;
+    }
+
+    function openResumeDb() {
+        return new Promise((resolve, reject) => {
+            if (typeof indexedDB === "undefined") {
+                reject(new Error("IndexedDB is unavailable"));
+                return;
+            }
+
+            const request = indexedDB.open(RESUME_DB_NAME, RESUME_DB_VERSION);
+
+            request.onupgradeneeded = () => {
+                const db = request.result;
+                if (!db.objectStoreNames.contains(RESUME_DB_STORE)) {
+                    db.createObjectStore(RESUME_DB_STORE);
+                }
+            };
+
+            request.onsuccess = () => resolve(request.result);
+            request.onerror = () => reject(request.error || new Error("Failed to open resume database"));
+        });
+    }
+
+    async function setResumePayloadInIndexedDb(payload) {
+        const db = await openResumeDb();
+        return new Promise((resolve, reject) => {
+            const tx = db.transaction(RESUME_DB_STORE, "readwrite");
+            const store = tx.objectStore(RESUME_DB_STORE);
+            store.put(payload, RESUME_DB_KEY);
+
+            tx.oncomplete = () => {
+                db.close();
+                resolve(true);
+            };
+            tx.onerror = () => {
+                const err = tx.error || new Error("Failed to write resume payload to IndexedDB");
+                db.close();
+                reject(err);
+            };
+            tx.onabort = () => {
+                const err = tx.error || new Error("IndexedDB transaction aborted while writing resume payload");
+                db.close();
+                reject(err);
+            };
+        });
+    }
+
+    async function getResumePayloadFromIndexedDb() {
+        const db = await openResumeDb();
+        return new Promise((resolve, reject) => {
+            const tx = db.transaction(RESUME_DB_STORE, "readonly");
+            const store = tx.objectStore(RESUME_DB_STORE);
+            const request = store.get(RESUME_DB_KEY);
+
+            request.onsuccess = () => {
+                const value = request.result || null;
+                db.close();
+                resolve(value);
+            };
+            request.onerror = () => {
+                const err = request.error || new Error("Failed to read resume payload from IndexedDB");
+                db.close();
+                reject(err);
+            };
+            tx.onabort = () => {
+                const err = tx.error || new Error("IndexedDB transaction aborted while reading resume payload");
+                db.close();
+                reject(err);
+            };
+        });
+    }
+
+    async function clearResumePayloadInIndexedDb() {
+        const db = await openResumeDb();
+        return new Promise((resolve, reject) => {
+            const tx = db.transaction(RESUME_DB_STORE, "readwrite");
+            const store = tx.objectStore(RESUME_DB_STORE);
+            store.delete(RESUME_DB_KEY);
+
+            tx.oncomplete = () => {
+                db.close();
+                resolve(true);
+            };
+            tx.onerror = () => {
+                const err = tx.error || new Error("Failed to clear resume payload from IndexedDB");
+                db.close();
+                reject(err);
+            };
+            tx.onabort = () => {
+                const err = tx.error || new Error("IndexedDB transaction aborted while clearing resume payload");
+                db.close();
+                reject(err);
+            };
+        });
+    }
+
+    function normalizeResumePayload(payload) {
+        if (!payload || !Array.isArray(payload.tweets) || payload.tweets.length === 0) {
+            return null;
+        }
+
+        return {
+            username: String(payload.username || "").replace(/^@/, "").toLowerCase(),
+            saved_at: Number(payload.saved_at) || Date.now(),
+            meta: payload.meta || null,
+            tweets: payload.tweets
+        };
+    }
+
+    async function clearPersistedResumeState() {
+        try {
+            await clearResumePayloadInIndexedDb();
+        } catch (err) {
+            logWarn("Failed to clear IndexedDB resume payload", { error: err.message });
+        }
+
+        try {
+            if (chrome.storage?.local) {
+                await chrome.storage.local.remove(RESUME_STORAGE_KEY);
+            }
+        } catch (err) {
+            logWarn("Failed to clear fallback resume payload", { error: err.message });
+        }
+    }
+
+    async function persistResumeState(username, tweets, exportMeta) {
+        const payload = normalizeResumePayload({
+            username: String(username || "").replace(/^@/, "").toLowerCase(),
+            saved_at: Date.now(),
+            meta: exportMeta || null,
+            tweets
+        });
+
+        if (!payload) return false;
+
+        try {
+            await setResumePayloadInIndexedDb(payload);
+            logInfo("Persisted resume payload", { tweets: tweets.length, username: payload.username });
+            return true;
+        } catch (err) {
+            logWarn("IndexedDB resume persistence failed, trying fallback storage", { error: err.message });
+        }
+
+        if (!chrome.storage?.local) return false;
+
+        try {
+            await chrome.storage.local.set({ [RESUME_STORAGE_KEY]: payload });
+            logWarn("Persisted resume payload in fallback storage", { tweets: tweets.length, username: payload.username });
+            return true;
+        } catch (err) {
+            logError("Failed to persist resume payload", { error: err.message });
+            return false;
+        }
+    }
+
+    async function restoreResumeStateFromStorage(targetUsername) {
+        if (isResumeMode && previousTweets.length > 0) return true;
+        let payload = null;
+
+        try {
+            payload = normalizeResumePayload(await getResumePayloadFromIndexedDb());
+        } catch (err) {
+            logWarn("Could not read resume payload from IndexedDB", { error: err.message });
+        }
+
+        if (!payload && chrome.storage?.local) {
+            try {
+                const result = await chrome.storage.local.get([RESUME_STORAGE_KEY]);
+                payload = normalizeResumePayload(result?.[RESUME_STORAGE_KEY]);
+            } catch (err) {
+                logWarn("Could not read fallback resume payload", { error: err.message });
+            }
+        }
+
+        if (!payload) return false;
+
+        try {
+            if (payload.saved_at && (Date.now() - payload.saved_at > RESUME_STORAGE_MAX_AGE_MS)) {
+                logWarn("Found expired resume payload. Clearing it.");
+                await clearPersistedResumeState();
+                return false;
+            }
+
+            const payloadUsername = String(payload.username || "").toLowerCase();
+            const normalizedTarget = String(targetUsername || "").replace(/^@/, "").toLowerCase();
+
+            if (payloadUsername && normalizedTarget && payloadUsername !== normalizedTarget) {
+                logInfo("Resume payload exists for different user. Skipping auto-merge.", {
+                    payloadUsername,
+                    target: normalizedTarget
+                });
+                return false;
+            }
+
+            previousTweets = payload.tweets;
+            previousExportMeta = payload.meta || null;
+            isResumeMode = true;
+            logInfo(`Restored ${previousTweets.length} resume tweets from extension storage`);
+            return true;
+        } catch (err) {
+            logWarn("Failed to restore resume payload", { error: err.message });
+            return false;
+        }
+    }
+
+    function mergeWithPreviousTweets(newTweets) {
+        const freshTweets = Array.isArray(newTweets) ? [...newTweets] : [];
+
+        if (!isResumeMode || previousTweets.length === 0) {
+            return { tweets: freshTweets, mergeInfo: null };
+        }
+
+        const mergedByKey = new Map();
+        let duplicates = 0;
+
+        function addTweet(tweet, source, index) {
+            if (!tweet || typeof tweet !== "object") return;
+            const key = tweet.id ? `id:${tweet.id}` : `${source}:${index}:${tweet.created_at || ""}:${tweet.text || ""}`;
+
+            if (!mergedByKey.has(key)) {
+                mergedByKey.set(key, tweet);
+                return;
+            }
+
+            duplicates++;
+            const existing = mergedByKey.get(key);
+            const existingSize = existing ? Object.keys(existing).length : 0;
+            const candidateSize = Object.keys(tweet).length;
+            if (candidateSize > existingSize) {
+                mergedByKey.set(key, tweet);
+            }
+        }
+
+        freshTweets.forEach((tweet, index) => addTweet(tweet, "new", index));
+        previousTweets.forEach((tweet, index) => addTweet(tweet, "prev", index));
+
+        const merged = Array.from(mergedByKey.values());
+        merged.sort((a, b) => {
+            const dateA = parseTweetDate(a.created_at) || new Date(0);
+            const dateB = parseTweetDate(b.created_at) || new Date(0);
+            return dateB - dateA;
+        });
+
+        return {
+            tweets: merged,
+            mergeInfo: {
+                previous_count: previousTweets.length,
+                new_count: freshTweets.length,
+                duplicates_removed: duplicates,
+                final_count: merged.length
+            }
+        };
+    }
+
+    function getConsolidatedCollectedTweets(currentTweets) {
+        return mergeWithPreviousTweets(currentTweets).tweets;
+    }
+
     function handleResumeFromFile() {
         logInfo("Resume from File triggered");
 
@@ -1886,14 +2337,10 @@
                 const data = JSON.parse(text);
 
                 // Extract tweets from the file (check both 'items' and 'tweets')
-                let tweets = [];
-                if (data.items && Array.isArray(data.items)) {
-                    tweets = data.items;
-                } else if (data.tweets && Array.isArray(data.tweets)) {
-                    tweets = data.tweets;
-                } else if (Array.isArray(data)) {
-                    tweets = data;
-                } else {
+                const tweets = extractTweetsFromExportData(data);
+                const sourceMeta = data?.meta || data?.metadata || null;
+
+                if (!tweets || !Array.isArray(tweets)) {
                     throw new Error("Could not find items/tweets array in file");
                 }
 
@@ -1926,13 +2373,15 @@
 
                 // Store the tweets for merging later
                 previousTweets = tweets;
+                previousExportMeta = sourceMeta;
                 isResumeMode = true;
 
                 // Determine the username from the file or URL
                 let username = data.meta?.username || data.metadata?.username || getUsernameFromUrl() || "unknown";
+                username = String(username).replace(/^@/, "");
 
                 // Build the resume URL
-                const resumeUrl = `https://x.com/search?q=from:${username} until:${untilDate}&src=typed_query&f=live`;
+                const resumeUrl = `https://x.com/search?q=from:${username} until:${untilDate}&src=typed_query&f=live&twexport_resume=1`;
 
                 logInfo(`Resume URL: ${resumeUrl}`);
 
@@ -1947,8 +2396,13 @@
                 );
 
                 if (confirmed) {
+                    const persisted = await persistResumeState(username, tweets, sourceMeta);
+                    if (!persisted) {
+                        throw new Error("Could not persist resume payload before navigation. Try a smaller file or a fresh export.");
+                    }
+
                     // Store auto-start flag
-                    chrome.storage.local.set({
+                    await chrome.storage.local.set({
                         'twexport_search_autostart': {
                             username: username,
                             autoStart: true,
@@ -1961,14 +2415,14 @@
                     // Navigate to resume URL
                     window.location.href = resumeUrl;
                 } else {
-                    previousTweets = [];
-                    isResumeMode = false;
+                    clearInMemoryResumeState();
                     resetButton();
                 }
 
             } catch (err) {
                 logError("Failed to parse resume file: " + err.message);
                 alert("❌ Failed to load file:\n" + err.message);
+                clearInMemoryResumeState();
                 resetButton();
             }
 
@@ -2068,6 +2522,8 @@
         btnTry.onclick = (e) => {
             e.stopPropagation();
             isRateLimited = false;
+            rateLimitState.mode = 'normal';
+            markTimelineActivity();
             // Remove the controls
             const ctrl = document.getElementById("twexport-rl-controls");
             if (ctrl) ctrl.remove();
@@ -2115,7 +2571,8 @@
 
     function savePartialExport() {
         logInfo("Saving partial export...");
-        const collected = extractTweetsFromInterceptedResponses(currentExportUserId || "unknown");
+        const liveCollected = extractTweetsFromInterceptedResponses(currentExportUserId || "unknown");
+        const { tweets: collected, mergeInfo } = mergeWithPreviousTweets(liveCollected);
 
         // Sort DESC
         collected.sort((a, b) => {
@@ -2129,7 +2586,13 @@
         const filename = `TwExport_${username}_PARTIAL_${timestamp}.json`;
 
         const payload = {
-            meta: { username, note: "PARTIAL EXPORT (Rate Limit)" },
+            meta: {
+                username,
+                note: "PARTIAL EXPORT (Rate Limit)",
+                collected_count: collected.length,
+                resume_mode: isResumeMode || undefined,
+                merge_info: mergeInfo || undefined
+            },
             items: collected
         };
 
@@ -2138,72 +2601,91 @@
         logInfo(`Saved ${collected.length} tweets partially.`);
     }
 
-    function copyResumeLink() {
-        const collected = extractTweetsFromInterceptedResponses(currentExportUserId || "unknown");
-        // Sort DESC (Newest -> Oldest)
-        collected.sort((a, b) => {
-            const dateA = parseTweetDate(a.created_at) || new Date(0);
-            const dateB = parseTweetDate(b.created_at) || new Date(0);
-            return dateB - dateA;
-        });
+    async function copyResumeLink() {
+        try {
+            const liveCollected = extractTweetsFromInterceptedResponses(currentExportUserId || "unknown");
+            const collected = getConsolidatedCollectedTweets(liveCollected);
+            // Sort DESC (Newest -> Oldest)
+            collected.sort((a, b) => {
+                const dateA = parseTweetDate(a.created_at) || new Date(0);
+                const dateB = parseTweetDate(b.created_at) || new Date(0);
+                return dateB - dateA;
+            });
 
-        if (collected.length === 0) {
-            logWarn("No tweets collected to resume from");
-            return;
-        }
-
-        // The last collected tweet is the OLDEST we have reached.
-        const lastTweet = collected[collected.length - 1];
-
-        // Parse the date - our formatDate outputs "YYYY -MM -DD HH:MM:SS"
-        // Extract just YYYY-MM-DD
-        let until;
-        const dateStr = lastTweet.created_at || "";
-        const dateMatch = dateStr.match(/(\d{4})\s*-\s*(\d{2})\s*-\s*(\d{2})/);
-        if (dateMatch) {
-            // To prevent gaps, we use the DAY AFTER the last tweet.
-            // (Twitter 'until' is exclusive of the date provided).
-            const lastD = new Date(`${dateMatch[1]}-${dateMatch[2]}-${dateMatch[3]}`);
-            lastD.setDate(lastD.getDate() + 1);
-            until = lastD.toISOString().slice(0, 10);
-        } else {
-            // Fallback: try standard Date parsing
-            const d = new Date(dateStr);
-            if (!isNaN(d.getTime())) {
-                d.setDate(d.getDate() + 1);
-                until = d.toISOString().slice(0, 10);
-            } else {
-                logWarn("Could not parse date from last tweet: " + dateStr);
-                alert("Could not determine resume date accurately. Check console.");
+            if (collected.length === 0) {
+                logWarn("No tweets collected to resume from");
                 return;
             }
-        }
 
-        const params = new URLSearchParams(window.location.search);
-        let query = params.get('q') || `from:${getUsernameFromUrl()}`;
+            // The last collected tweet is the OLDEST we have reached.
+            const lastTweet = collected[collected.length - 1];
 
-        // Preserve original since: if exists, otherwise just from:
-        // Replace or add 'until:YYYY-MM-DD'
-        if (query.includes('until:')) {
-            query = query.replace(/until:\d{4}-\d{2}-\d{2}/, `until:${until}`);
-        } else {
-            query += ` until:${until}`;
-        }
+            // Parse the date - our formatDate outputs "YYYY -MM -DD HH:MM:SS"
+            // Extract just YYYY-MM-DD
+            let until;
+            const dateStr = lastTweet.created_at || "";
+            const dateMatch = dateStr.match(/(\d{4})\s*-\s*(\d{2})\s*-\s*(\d{2})/);
+            if (dateMatch) {
+                // To prevent gaps, we use the DAY AFTER the last tweet.
+                // (Twitter 'until' is exclusive of the date provided).
+                const lastD = new Date(`${dateMatch[1]}-${dateMatch[2]}-${dateMatch[3]}`);
+                lastD.setDate(lastD.getDate() + 1);
+                until = lastD.toISOString().slice(0, 10);
+            } else {
+                // Fallback: try standard Date parsing
+                const d = new Date(dateStr);
+                if (!isNaN(d.getTime())) {
+                    d.setDate(d.getDate() + 1);
+                    until = d.toISOString().slice(0, 10);
+                } else {
+                    logWarn("Could not parse date from last tweet: " + dateStr);
+                    alert("Could not determine resume date accurately. Check console.");
+                    return;
+                }
+            }
 
-        const newUrl = `https://x.com/search?q=${encodeURIComponent(query)}&src=typed_query&f=live`;
+            const params = new URLSearchParams(window.location.search);
+            let query = params.get('q') || `from:${getUsernameFromUrl()}`;
 
-        // Prime the auto-start for the next tab
-        const searchCtx = {
-            username: getUsernameFromUrl(),
-            autoStart: true,
-            timestamp: Date.now()
-        };
-        chrome.storage.local.set({ 'twexport_search_autostart': searchCtx });
+            // Preserve original since: if exists, otherwise just from:
+            // Replace or add 'until:YYYY-MM-DD'
+            if (query.includes('until:')) {
+                query = query.replace(/until:\d{4}-\d{2}-\d{2}/, `until:${until}`);
+            } else {
+                query += ` until:${until}`;
+            }
 
-        navigator.clipboard.writeText(newUrl).then(() => {
+            const newUrl = `https://x.com/search?q=${encodeURIComponent(query)}&src=typed_query&f=live&twexport_resume=1`;
+
+            const resumeUsername = getUsernameFromUrl() || previousExportMeta?.username || null;
+            const persisted = await persistResumeState(
+                resumeUsername || "unknown",
+                collected,
+                {
+                    ...(previousExportMeta || {}),
+                    username: resumeUsername || undefined,
+                    collected_count: collected.length,
+                    resume_saved_at: new Date().toISOString()
+                }
+            );
+
+            // Prime the auto-start for the next tab
+            const searchCtx = {
+                username: resumeUsername,
+                autoStart: true,
+                timestamp: Date.now(),
+                resumeMode: persisted,
+                previousTweetsCount: persisted ? collected.length : undefined
+            };
+            await chrome.storage.local.set({ 'twexport_search_autostart': searchCtx });
+
+            await navigator.clipboard.writeText(newUrl);
             logInfo("Resume Link copied with auto-start flag.");
             alert("✅ Resume Link Copied!\n\n1. Use a new account/tab.\n2. Paste the link.\n3. The export will RESUME AUTOMATICALLY from that point.");
-        });
+        } catch (err) {
+            logError("Failed to copy resume link", { error: err.message });
+            alert("❌ Could not copy resume link. Check console logs.");
+        }
     }
 
     // ========== EXPORT LOGIC ==========
@@ -2225,6 +2707,9 @@
             handleCancelExport();
             return;
         }
+
+        const autoStartCtx = pendingAutoStartContext;
+        pendingAutoStartContext = null;
 
         const username = getUsernameFromUrl();
         if (!username) {
@@ -2291,6 +2776,16 @@
             if (match) searchUser = match[1];
         }
 
+        const isResumeRequest = params.get("twexport_resume") === "1" || Boolean(autoStartCtx?.resumeMode);
+        if (isResumeRequest) {
+            const restoredResume = await restoreResumeStateFromStorage(searchUser);
+            if (restoredResume) {
+                logInfo(`Resume mode enabled for @${searchUser} (${previousTweets.length} prior tweets)`);
+            } else {
+                logWarn("Resume requested but no cached resume payload was found.");
+            }
+        }
+
         logInfo(`Starting Scroll Export for ${searchUser}`);
 
         isExporting = true;
@@ -2322,6 +2817,7 @@
     // Alternative export that scrolls the page and captures Twitter's own API responses
     async function runScrollExport(username, userId, csrfToken, user) {
         logInfo("=== STARTING SCROLL-BASED EXPORT ===", { username });
+        currentExportUserId = userId;
 
         // Detect if we are on the Replies tab
         const isOnRepliesTab = window.location.pathname.includes('/with_replies');
@@ -2339,6 +2835,7 @@
         // Reset rate limit state for fresh export
         isRateLimited = false;
         isPendingDone = false;
+        markTimelineActivity();
         rateLimitState.mode = 'normal';
         rateLimitState.requestCount = 0;
         rateLimitState.retryCount = 0;
@@ -2362,9 +2859,10 @@
             // If we are in "unknown" mode (search export), try to resolve the real user ID now
             if (userId === "unknown" && collected.length > 0 && username) {
                 // Find a tweet by this user
-                const match = collected.find(t => t.author?.screen_name?.toLowerCase() === username.toLowerCase());
+                const match = collected.find(t => t.author?.username?.toLowerCase() === username.toLowerCase());
                 if (match?.author?.id) {
                     userId = match.author.id;
+                    currentExportUserId = userId;
                     logInfo(`Resolved User ID from captured data: ${userId}`);
 
                     // Update user object for metadata
@@ -2373,7 +2871,7 @@
                         user.name = match.author.name;
                         if (!user.legacy) user.legacy = {};
                         user.legacy.name = match.author.name;
-                        user.legacy.screen_name = match.author.screen_name;
+                        user.legacy.screen_name = match.author.username;
                     }
                 }
             }
@@ -2412,41 +2910,37 @@
             logInfo(`Scroll export collected ${collected.length} tweets`);
 
             // === MERGE WITH PREVIOUS TWEETS (Resume Mode) ===
-            let finalTweets = collected;
-            let mergeInfo = null;
+            const { tweets: finalTweets, mergeInfo } = mergeWithPreviousTweets(collected);
 
-            if (isResumeMode && previousTweets.length > 0) {
-                logInfo(`Resume mode: merging with ${previousTweets.length} previous tweets`);
-
-                // Create a Set of IDs from new tweets for deduplication
-                const newIds = new Set(collected.map(t => t.id));
-
-                // Add previous tweets that aren't duplicates
-                let duplicates = 0;
-                for (const prevTweet of previousTweets) {
-                    if (!newIds.has(prevTweet.id)) {
-                        finalTweets.push(prevTweet);
-                    } else {
-                        duplicates++;
-                    }
-                }
-
-                // Re-sort the merged collection
-                finalTweets.sort((a, b) => {
-                    const dateA = parseTweetDate(a.created_at) || new Date(0);
-                    const dateB = parseTweetDate(b.created_at) || new Date(0);
-                    return dateB - dateA;
-                });
-
-                mergeInfo = {
-                    previous_count: previousTweets.length,
-                    new_count: collected.length,
-                    duplicates_removed: duplicates,
-                    final_count: finalTweets.length
-                };
-
-                logInfo(`Merged: ${previousTweets.length} previous + ${collected.length} new - ${duplicates} duplicates = ${finalTweets.length} total`);
+            if (mergeInfo) {
+                logInfo(
+                    `Merged: ${mergeInfo.previous_count} previous + ${mergeInfo.new_count} new - ${mergeInfo.duplicates_removed} duplicates = ${mergeInfo.final_count} total`
+                );
             }
+
+            const previousStartedAt = previousExportMeta?.export_started_at || previousExportMeta?.started_at || null;
+            const previousCompletedAt = previousExportMeta?.export_completed_at || previousExportMeta?.finished_at || null;
+            const previousReportedCount = Number(previousExportMeta?.reported_count ?? previousExportMeta?.total_tweets_reported ?? NaN);
+            const reportedCandidates = [];
+            if (Number.isFinite(totalTweetsReported) && totalTweetsReported > 0) {
+                reportedCandidates.push(totalTweetsReported);
+            }
+            if (Number.isFinite(previousReportedCount) && previousReportedCount > 0) {
+                reportedCandidates.push(previousReportedCount);
+            }
+            const consolidatedReportedCount = reportedCandidates.length > 0
+                ? Math.max(...reportedCandidates)
+                : null;
+
+            const priorCapturedCount = Number(previousExportMeta?.scroll_responses_captured ?? NaN);
+            const priorCapturedSafe = Number.isFinite(priorCapturedCount) && priorCapturedCount > 0
+                ? priorCapturedCount
+                : 0;
+            const totalCapturedResponses = interceptedResponses.length + (mergeInfo ? priorCapturedSafe : 0);
+
+            const effectiveStartedAt = mergeInfo
+                ? (getEarliestIsoDate(previousStartedAt, startedAt) || startedAt)
+                : startedAt;
 
             // Build payload
             const payload = {
@@ -2454,12 +2948,16 @@
                     username,
                     user_id: userId,
                     name: user.legacy?.name || username,
-                    export_started_at: startedAt,
+                    export_started_at: effectiveStartedAt,
                     export_completed_at: new Date().toISOString(),
                     collected_count: finalTweets.length,
-                    reported_count: totalTweetsReported,
+                    new_collected_count: collected.length,
+                    previous_collected_count: mergeInfo ? previousTweets.length : 0,
+                    reported_count: consolidatedReportedCount,
                     collection_method: isResumeMode ? "scroll-interception-resumed" : "scroll-interception",
-                    scroll_responses_captured: interceptedResponses.length,
+                    scroll_responses_captured: totalCapturedResponses,
+                    previous_export_started_at: mergeInfo ? previousStartedAt || undefined : undefined,
+                    previous_export_completed_at: mergeInfo ? previousCompletedAt || undefined : undefined,
                     ...(mergeInfo && { merge_info: mergeInfo })
                 },
                 items: finalTweets
@@ -2476,9 +2974,10 @@
                 resumed: isResumeMode
             });
 
-            // Clear resume state
-            previousTweets = [];
-            isResumeMode = false;
+            if (isResumeMode) {
+                clearInMemoryResumeState();
+                await clearPersistedResumeState();
+            }
 
             updateButton(`✅ Exported ${finalTweets.length} tweets!`);
             setTimeout(resetButton, 5000);
@@ -2487,6 +2986,7 @@
             // Always clean up
             stopFetchInterception();
             clearInterceptedResponses();
+            currentExportUserId = null;
             isExporting = false;
             abortController = null;
         }
@@ -2789,6 +3289,7 @@
                 // If timestamp is fresh (< 60s)
                 if (Date.now() - ctx.timestamp < 60000) {
                     logInfo("Auto-start flag detected! Starting export...");
+                    pendingAutoStartContext = ctx;
                     chrome.storage.local.remove('twexport_search_autostart');
 
                     // Wait for page to settle then trigger
@@ -2801,6 +3302,10 @@
     }
 
     urlObserver.observe(document.body, { childList: true, subtree: true });
+
+    // Expose manual stop function for rescue
+    window.twExportStop = handleCancelExport;
+
     initializeOrUpdate();
     window.addEventListener("popstate", initializeOrUpdate);
 })();
