@@ -11,16 +11,10 @@ const packageJson = JSON.parse(readFileSync(packageJsonPath, 'utf8')) as {
 
 export default defineConfig({
     manifestVersion: 3,
-    srcDir: '.',
+    srcDir: 'src',
+    entrypointsDir: '../entrypoints',
     outDir: '.output',
     modules: [],
-    vite: () => ({
-        resolve: {
-            alias: {
-                '@': resolve(rootDir, 'src'),
-            },
-        },
-    }),
     manifest: {
         name: 'Wawa Minimal',
         description: 'Minimal local export of X/Twitter posts without telemetry.',

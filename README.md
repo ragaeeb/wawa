@@ -132,7 +132,7 @@ Twitter's REST API v1.1 and v2 have documented limitations:
 
 By intercepting `SearchTimeline`, we capture the same data Twitter's own web UI uses, ensuring completeness.
 
-#### 2. **Content Script** (`src/content/` & `src/legacy/`)
+#### 2. **Content Script** (`src/content/`)
 
 **Purpose**: Orchestrates export workflow on X/Twitter pages.
 

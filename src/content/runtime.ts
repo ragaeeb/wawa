@@ -511,16 +511,16 @@ import { createChromeLocalFallbackStorage, createResumeStorage } from '@/core/re
                 const checkInterval = 1000;
                 const endTime = Date.now() + cooldownTime;
 
-                while (Date.now() < endTime && isExporting && !window.twExportSkipCooldown) {
+                while (Date.now() < endTime && isExporting && !window.wawaSkipCooldown) {
                     const remaining = Math.max(0, endTime - Date.now());
                     updateCooldownTimer(remaining);
                     await sleep(checkInterval);
                 }
 
                 // Reset skip flag
-                if (window.twExportSkipCooldown) {
+                if (window.wawaSkipCooldown) {
                     logInfo('Cooldown skipped by user');
-                    window.twExportSkipCooldown = false;
+                    window.wawaSkipCooldown = false;
                 }
 
                 removeCooldownUI();
@@ -1940,7 +1940,7 @@ import { createChromeLocalFallbackStorage, createResumeStorage } from '@/core/re
         };
         btnSkip.onclick = () => {
             logInfo('User clicked Skip Wait');
-            window.twExportSkipCooldown = true;
+            window.wawaSkipCooldown = true;
         };
 
         // Stop Button
@@ -1959,7 +1959,7 @@ import { createChromeLocalFallbackStorage, createResumeStorage } from '@/core/re
         `;
         btnStop.onclick = () => {
             if (confirm('Stop export and save current progress?')) {
-                window.twExportSkipCooldown = true; // Break wait loop
+                window.wawaSkipCooldown = true; // Break wait loop
                 handleCancelExport();
             }
         };

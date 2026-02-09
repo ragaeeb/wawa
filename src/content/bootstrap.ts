@@ -1,9 +1,9 @@
 let bootstrapped = false;
 
-export const bootstrapLegacyContentScript = async (): Promise<void> => {
+export const bootstrapContentRuntime = async (): Promise<void> => {
     if (bootstrapped) {
         return;
     }
     bootstrapped = true;
-    await import('../legacy/content-script');
+    await import('@/content/runtime');
 };

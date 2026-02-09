@@ -49,8 +49,7 @@ wawa/
 │   │   ├── timeline/      # Tweet extraction from GraphQL
 │   │   └── ui/            # UI utilities
 │   ├── platform/chrome/   # Chrome-specific adapters
-│   ├── content/           # Content script bootstrap
-│   ├── legacy/            # Legacy content script (not shown)
+│   ├── content/           # Content script runtime + bootstrap
 │   └── types/             # TypeScript definitions
 ├── tests/setup/           # Test configuration
 └── wxt.config.ts          # WXT build configuration
@@ -141,9 +140,6 @@ See `src/core/rate-limit/state.ts` for implementation.
 - **Optional chaining**: Prefer `?.` over manual null checks
 - **Type aliases over interfaces**: Prefer `type` for object/type definitions.
 - **Arrow functions over function declarations**: Prefer `const fn = (...) => {}` style for module and local functions.
-
-Legacy exception:
-- `src/legacy/**` may retain function declarations until that code is fully migrated out; apply the above rules to all non-legacy TypeScript code.
 
 ### Testing
 

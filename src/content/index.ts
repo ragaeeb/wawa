@@ -1,5 +1,5 @@
-import { bootstrapLegacyContentScript } from '@/content/bootstrap';
+import { bootstrapContentRuntime } from '@/content/bootstrap';
 
 export const bootstrapContentScript = async (): Promise<void> => {
-    await bootstrapLegacyContentScript();
+    await bootstrapContentRuntime();
 };
