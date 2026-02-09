@@ -63,7 +63,7 @@ export type MergeResult = {
  * This heuristic assumes more fields = more complete data, which holds true
  * for Twitter's API where different endpoints return varying detail levels.
  */
-const pickRicherTweet = (existing: TweetItem, candidate: TweetItem): TweetItem => {
+const pickRicherTweet = (existing: TweetItem, candidate: TweetItem) => {
     const existingSize = Object.keys(existing).length;
     const candidateSize = Object.keys(candidate).length;
     return candidateSize > existingSize ? candidate : existing;
@@ -95,7 +95,7 @@ const pickRicherTweet = (existing: TweetItem, candidate: TweetItem): TweetItem =
  * // Returns: "previous:5:2020-01-01 00:00:00:No ID tweet"
  * ```
  */
-const tweetKey = (tweet: TweetItem, source: 'new' | 'previous', index: number): string => {
+const tweetKey = (tweet: TweetItem, source: 'new' | 'previous', index: number) => {
     if (tweet.id) {
         return `id:${tweet.id}`;
     }
@@ -124,7 +124,7 @@ const tweetKey = (tweet: TweetItem, source: 'new' | 'previous', index: number): 
  * // Returns: [id: "2" (2021), id: "1" (2020), id: "3" (2019)]
  * ```
  */
-export const sortTweetsByDateDesc = (tweets: TweetItem[]): TweetItem[] => {
+export const sortTweetsByDateDesc = (tweets: TweetItem[]) => {
     return [...tweets].sort((a, b) => {
         const dateA = parseTweetDate(a.created_at) ?? new Date(0);
         const dateB = parseTweetDate(b.created_at) ?? new Date(0);
@@ -186,7 +186,7 @@ export const sortTweetsByDateDesc = (tweets: TweetItem[]): TweetItem[] => {
  * - If previousTweets is empty, returns newTweets sorted with null mergeInfo
  * - Preserves all unknown fields in tweet objects (flexible schema)
  */
-export const mergeTweets = (newTweets: TweetItem[], previousTweets: TweetItem[]): MergeResult => {
+export const mergeTweets = (newTweets: TweetItem[], previousTweets: TweetItem[]) => {
     if (previousTweets.length === 0) {
         return { tweets: sortTweetsByDateDesc(newTweets), mergeInfo: null };
     }

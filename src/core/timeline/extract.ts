@@ -92,7 +92,7 @@ export type TimelineRowBuilder<T> = (tweetResult: Record<string, unknown>, type:
  * console.log(normalized?.rest_id); // "123"
  * ```
  */
-export const normalizeTweetResult = (result: unknown): Record<string, unknown> | null => {
+export const normalizeTweetResult = (result: unknown) => {
     if (!result || typeof result !== 'object') {
         return null;
     }
@@ -137,7 +137,7 @@ export const normalizeTweetResult = (result: unknown): Record<string, unknown> |
  * }
  * ```
  */
-export const getTimelineInstructions = (data: unknown): TimelineInstruction[] => {
+export const getTimelineInstructions = (data: unknown) => {
     if (!data || typeof data !== 'object') {
         return [];
     }
@@ -168,23 +168,23 @@ export const getTimelineInstructions = (data: unknown): TimelineInstruction[] =>
     );
 };
 
-const isPromotedTweet = (entryId: string): boolean => {
+const isPromotedTweet = (entryId: string) => {
     return entryId.startsWith('promoted-tweet-');
 };
 
-const isTweetEntry = (entryId: string): boolean => {
+const isTweetEntry = (entryId: string) => {
     return entryId.startsWith('tweet-');
 };
 
-const isConversationEntry = (entryId: string): boolean => {
+const isConversationEntry = (entryId: string) => {
     return entryId.startsWith('profile-conversation-');
 };
 
-const isCursorEntry = (entryId: string): boolean => {
+const isCursorEntry = (entryId: string) => {
     return entryId.startsWith('cursor-bottom-');
 };
 
-const determineItemType = (normalized: Record<string, unknown>): TweetItemType => {
+const determineItemType = (normalized: Record<string, unknown>) => {
     const hasRetweet = Boolean(
         (normalized as { legacy?: { retweeted_status_result?: { result?: unknown } } }).legacy?.retweeted_status_result
             ?.result,
@@ -192,7 +192,7 @@ const determineItemType = (normalized: Record<string, unknown>): TweetItemType =
     return hasRetweet ? 'Retweet' : 'Tweet';
 };
 
-const processTweetEntry = <T>(entry: TimelineEntry, buildRow: TimelineRowBuilder<T>): T | null => {
+const processTweetEntry = <T>(entry: TimelineEntry, buildRow: TimelineRowBuilder<T>) => {
     const normalized = normalizeTweetResult(entry.content?.itemContent?.tweet_results?.result);
     if (!normalized) {
         return null;
@@ -202,7 +202,7 @@ const processTweetEntry = <T>(entry: TimelineEntry, buildRow: TimelineRowBuilder
     return buildRow(normalized, type);
 };
 
-const processConversationItems = <T>(entry: TimelineEntry, buildRow: TimelineRowBuilder<T>): T[] => {
+const processConversationItems = <T>(entry: TimelineEntry, buildRow: TimelineRowBuilder<T>) => {
     const items: T[] = [];
     const conversationItems = entry.content?.items ?? [];
 
@@ -220,19 +220,19 @@ const processConversationItems = <T>(entry: TimelineEntry, buildRow: TimelineRow
     return items;
 };
 
-const extractCursorFromEntry = (entry: TimelineEntry): string | null => {
+const extractCursorFromEntry = (entry: TimelineEntry) => {
     return entry.content?.cursorType === 'Bottom' ? (entry.content.value ?? null) : null;
 };
 
-const isAddOrReplaceInstruction = (instruction: TimelineInstruction): boolean => {
+const isAddOrReplaceInstruction = (instruction: TimelineInstruction) => {
     return instruction.type === 'TimelineAddEntries' || instruction.type === 'TimelineReplaceEntry';
 };
 
-const getEntriesFromInstruction = (instruction: TimelineInstruction): TimelineEntry[] => {
+const getEntriesFromInstruction = (instruction: TimelineInstruction) => {
     return instruction.entries ?? (instruction.entry ? [instruction.entry] : []);
 };
 
-const processTimelineEntry = <T>(entry: TimelineEntry, buildRow: TimelineRowBuilder<T>, items: T[]): string | null => {
+const processTimelineEntry = <T>(entry: TimelineEntry, buildRow: TimelineRowBuilder<T>, items: T[]) => {
     const entryId = entry.entryId ?? '';
 
     if (isPromotedTweet(entryId)) {
@@ -316,7 +316,7 @@ const processTimelineEntry = <T>(entry: TimelineEntry, buildRow: TimelineRowBuil
  * Promoted tweets (entryId starts with "promoted-tweet-") are automatically excluded.
  * Retweets are detected by checking for `legacy.retweeted_status_result.result`.
  */
-export const extractTimeline = <T>(data: unknown, buildRow: TimelineRowBuilder<T>): ExtractedTimeline<T> => {
+export const extractTimeline = <T>(data: unknown, buildRow: TimelineRowBuilder<T>) => {
     const instructions = getTimelineInstructions(data);
     const items: T[] = [];
     let nextCursor: string | null = null;

@@ -125,7 +125,7 @@ export type ExportLifecycleAction =
  * @param actionAt - Optional timestamp from action
  * @returns Provided timestamp or current time
  */
-const now = (actionAt?: number): number => {
+const now = (actionAt?: number) => {
     return actionAt ?? Date.now();
 };
 
@@ -146,11 +146,13 @@ const now = (actionAt?: number): number => {
  * console.log(testState.lastActivityAt); // 1000
  * ```
  */
-export const createInitialLifecycle = (at?: number): ExportLifecycleSnapshot => {
-    return {
+export const createInitialLifecycle = (at?: number) => {
+    const initialState: ExportLifecycleSnapshot = {
         status: 'idle',
         lastActivityAt: now(at),
     };
+
+    return initialState;
 };
 
 /**
@@ -196,37 +198,34 @@ export const createInitialLifecycle = (at?: number): ExportLifecycleSnapshot => 
  * @remarks
  * This function is pure (no side effects) and deterministic, making it easy to test.
  */
-export const reduceExportLifecycle = (
-    state: ExportLifecycleSnapshot,
-    action: ExportLifecycleAction,
-): ExportLifecycleSnapshot => {
+export const reduceExportLifecycle = (state: ExportLifecycleSnapshot, action: ExportLifecycleAction) => {
     switch (action.type) {
         case 'start':
-            return { status: 'running', lastActivityAt: now(action.at) };
+            return { status: 'running', lastActivityAt: now(action.at) } satisfies ExportLifecycleSnapshot;
 
         case 'activity':
-            return { ...state, lastActivityAt: now(action.at) };
+            return { ...state, lastActivityAt: now(action.at) } satisfies ExportLifecycleSnapshot;
 
         case 'enter_cooldown':
-            return { ...state, status: 'cooldown' };
+            return { ...state, status: 'cooldown' } satisfies ExportLifecycleSnapshot;
 
         case 'exit_cooldown':
-            return { status: 'running', lastActivityAt: now(action.at) };
+            return { status: 'running', lastActivityAt: now(action.at) } satisfies ExportLifecycleSnapshot;
 
         case 'pause_rate_limit':
-            return { ...state, status: 'paused_rate_limit' };
+            return { ...state, status: 'paused_rate_limit' } satisfies ExportLifecycleSnapshot;
 
         case 'resume_manual':
-            return { status: 'running', lastActivityAt: now(action.at) };
+            return { status: 'running', lastActivityAt: now(action.at) } satisfies ExportLifecycleSnapshot;
 
         case 'mark_pending_done':
-            return { ...state, status: 'pending_done' };
+            return { ...state, status: 'pending_done' } satisfies ExportLifecycleSnapshot;
 
         case 'cancel':
-            return { ...state, status: 'cancelled' };
+            return { ...state, status: 'cancelled' } satisfies ExportLifecycleSnapshot;
 
         case 'complete':
-            return { ...state, status: 'completed' };
+            return { ...state, status: 'completed' } satisfies ExportLifecycleSnapshot;
 
         default:
             return state;
@@ -306,7 +305,7 @@ export type LooksDoneParams = {
  * - False positives after manual resume (user expects more data)
  * - Triggering on tiny exports (<10 scroll operations)
  */
-export const shouldPromptLooksDone = (state: ExportLifecycleSnapshot, params: LooksDoneParams): boolean => {
+export const shouldPromptLooksDone = (state: ExportLifecycleSnapshot, params: LooksDoneParams) => {
     if (state.status !== 'running') {
         return false;
     }

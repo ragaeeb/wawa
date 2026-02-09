@@ -17,7 +17,7 @@ describe('interceptor runtime integration', () => {
             return setup;
         };
 
-        const delegatingFetch = (input: RequestInfo | URL): Promise<Response> => fetchImpl(input);
+        const delegatingFetch = (input: RequestInfo | URL) => fetchImpl(input);
         Object.defineProperty(window, 'fetch', {
             value: delegatingFetch,
             writable: true,
@@ -25,7 +25,7 @@ describe('interceptor runtime integration', () => {
         });
 
         Object.defineProperty(window, 'postMessage', {
-            value: (message: PostedMessage): void => {
+            value: (message: PostedMessage) => {
                 posted.push(message);
             },
             writable: true,

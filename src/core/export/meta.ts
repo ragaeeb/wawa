@@ -15,7 +15,7 @@ export type BuildMetaInput = {
     mergeInfo?: MergeInfo | null;
 };
 
-const parseIsoDate = (value: string | undefined): Date | null => {
+const parseIsoDate = (value: string | undefined) => {
     if (!value) {
         return null;
     }
@@ -23,16 +23,16 @@ const parseIsoDate = (value: string | undefined): Date | null => {
     return Number.isNaN(parsed.getTime()) ? null : parsed;
 };
 
-const earliestIsoDate = (...values: Array<string | undefined>): string | undefined => {
+const earliestIsoDate = (...values: Array<string | undefined>) => {
     const dates = values
         .map((value) => parseIsoDate(value))
-        .filter((value): value is Date => value !== null)
+        .filter((value) => value !== null)
         .sort((a, b) => a.getTime() - b.getTime());
 
     return dates[0]?.toISOString();
 };
 
-const extractPreviousReportedCount = (previousMeta: ExportMeta | null | undefined): number => {
+const extractPreviousReportedCount = (previousMeta: ExportMeta | null | undefined) => {
     if (!previousMeta) {
         return Number.NaN;
     }
@@ -44,23 +44,28 @@ const extractPreviousReportedCount = (previousMeta: ExportMeta | null | undefine
     return Number(Number.isFinite(reportedField) ? reportedField : totalReportedField);
 };
 
-const calculateBestReportedCount = (
-    currentReported: number | null | undefined,
-    previousReported: number,
-): number | null => {
-    const candidates = [currentReported, previousReported].filter(
-        (value): value is number => Number.isFinite(value as number) && Number(value) > 0,
-    );
+const calculateBestReportedCount = (currentReported: number | null | undefined, previousReported: number) => {
+    const candidates = [currentReported, previousReported];
+    let best: number | null = null;
 
-    return candidates.length > 0 ? Math.max(...candidates) : null;
+    for (const value of candidates) {
+        const numericValue = Number(value);
+        if (!Number.isFinite(numericValue) || numericValue <= 0) {
+            continue;
+        }
+
+        best = best === null ? numericValue : Math.max(best, numericValue);
+    }
+
+    return best;
 };
 
-const extractPreviousScrollResponsesCaptured = (previousMeta: ExportMeta | null | undefined): number => {
+const extractPreviousScrollResponsesCaptured = (previousMeta: ExportMeta | null | undefined) => {
     const priorCaptured = Number(previousMeta?.scroll_responses_captured ?? Number.NaN);
     return Number.isFinite(priorCaptured) && priorCaptured > 0 ? priorCaptured : 0;
 };
 
-const extractPreviousStartedAt = (previousMeta: ExportMeta | null | undefined): string | undefined => {
+const extractPreviousStartedAt = (previousMeta: ExportMeta | null | undefined) => {
     if (!previousMeta) {
         return undefined;
     }
@@ -72,7 +77,7 @@ const extractPreviousStartedAt = (previousMeta: ExportMeta | null | undefined): 
           : undefined;
 };
 
-const extractPreviousCompletedAt = (previousMeta: ExportMeta | null | undefined): string | undefined => {
+const extractPreviousCompletedAt = (previousMeta: ExportMeta | null | undefined) => {
     if (!previousMeta) {
         return undefined;
     }
@@ -84,15 +89,15 @@ const extractPreviousCompletedAt = (previousMeta: ExportMeta | null | undefined)
           : undefined;
 };
 
-const calculateConsolidatedCount = (input: BuildMetaInput): number => {
+const calculateConsolidatedCount = (input: BuildMetaInput) => {
     return input.mergeInfo ? input.mergeInfo.final_count : input.newCollectedCount + input.previousCollectedCount;
 };
 
-const calculateTotalScrollResponsesCaptured = (input: BuildMetaInput, previousCaptured: number): number => {
+const calculateTotalScrollResponsesCaptured = (input: BuildMetaInput, previousCaptured: number) => {
     return input.scrollResponsesCapturedCurrent + (input.mergeInfo ? previousCaptured : 0);
 };
 
-export const buildConsolidatedMeta = (input: BuildMetaInput): ExportMeta => {
+export const buildConsolidatedMeta = (input: BuildMetaInput) => {
     const previousReported = extractPreviousReportedCount(input.previousMeta);
     const reportedCount = calculateBestReportedCount(input.reportedCountCurrent, previousReported);
     const previousCaptured = extractPreviousScrollResponsesCaptured(input.previousMeta);

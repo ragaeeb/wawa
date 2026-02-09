@@ -1,6 +1,6 @@
 let bootstrapped = false;
 
-export const bootstrapContentRuntime = async (): Promise<void> => {
+export const bootstrapContentRuntime = async () => {
     if (bootstrapped) {
         return;
     }

@@ -1,5 +1,5 @@
 import { bootstrapContentRuntime } from '@/content/bootstrap';
 
-export const bootstrapContentScript = async (): Promise<void> => {
+export const bootstrapContentScript = async () => {
     await bootstrapContentRuntime();
 };

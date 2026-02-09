@@ -4,7 +4,7 @@ import type { RuntimeMessage } from '@/types/messages';
 
 let backgroundStarted = false;
 
-export const bootstrapBackground = (): void => {
+export const bootstrapBackground = () => {
     if (backgroundStarted) {
         return;
     }

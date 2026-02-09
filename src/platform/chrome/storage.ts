@@ -6,11 +6,17 @@ export const DEFAULT_SETTINGS: ExtensionSettings = {
     maxCount: 0,
 };
 
-export const getSettings = async (): Promise<ExtensionSettings> => {
+/**
+ * Reads extension settings with defaults applied for missing keys.
+ */
+export const getSettings = async () => {
     return chrome.storage.local.get(DEFAULT_SETTINGS) as Promise<ExtensionSettings>;
 };
 
-export const saveSettings = async (settings: Partial<ExtensionSettings>): Promise<void> => {
+/**
+ * Persists partial settings after merging with current defaults.
+ */
+export const saveSettings = async (settings: Partial<ExtensionSettings>) => {
     const next: ExtensionSettings = {
         minimalData: settings.minimalData ?? DEFAULT_SETTINGS.minimalData,
         includeReplies: settings.includeReplies ?? DEFAULT_SETTINGS.includeReplies,

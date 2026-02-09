@@ -1,6 +1,6 @@
 import type { LogEntry, LogLevel } from '@/types/domain';
 
-export const buildLogEntry = (level: LogLevel, message: string, data?: unknown): LogEntry => {
+export const buildLogEntry = (level: LogLevel, message: string, data?: unknown) => {
     return {
         timestamp: new Date().toISOString(),
         level,
@@ -9,7 +9,7 @@ export const buildLogEntry = (level: LogLevel, message: string, data?: unknown):
     };
 };
 
-export const emitConsoleLog = (entry: LogEntry): void => {
+export const emitConsoleLog = (entry: LogEntry) => {
     const prefix = `[Wawa ${entry.timestamp.split('T')[1]?.split('.')[0] ?? ''}]`;
 
     if (entry.level === 'error') {

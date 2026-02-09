@@ -7,27 +7,27 @@ import { RESUME_DB, STORAGE_KEYS } from '@/platform/chrome/storage-keys';
 class MemoryFallbackStorage implements FallbackStorage {
     private readonly store = new Map<string, unknown>();
 
-    async get<T>(key: string): Promise<T | undefined> {
+    async get<T>(key: string) {
         return this.store.get(key) as T | undefined;
     }
 
-    async set<T>(key: string, value: T): Promise<void> {
+    async set<T>(key: string, value: T) {
         this.store.set(key, value);
     }
 
-    async remove(key: string): Promise<void> {
+    async remove(key: string) {
         this.store.delete(key);
     }
 
-    has(key: string): boolean {
+    has(key: string) {
         return this.store.has(key);
     }
 
-    setRaw(key: string, value: unknown): void {
+    setRaw(key: string, value: unknown) {
         this.store.set(key, value);
     }
 
-    getRaw<T>(key: string): T | undefined {
+    getRaw<T>(key: string) {
         return this.store.get(key) as T | undefined;
     }
 }
@@ -41,7 +41,39 @@ type MockIndexedDbMode =
     | 'clear-error'
     | 'clear-abort';
 
-const createMockIndexedDbFactory = (mode: MockIndexedDbMode): IDBFactory => {
+const shouldAbortReadTransaction = (txMode: 'readonly' | 'readwrite', mode: MockIndexedDbMode) => {
+    return txMode === 'readonly' && mode === 'read-abort';
+};
+
+const shouldErrorWriteTransaction = (txMode: 'readonly' | 'readwrite', mode: MockIndexedDbMode) => {
+    return txMode === 'readwrite' && (mode === 'write-error' || mode === 'clear-error');
+};
+
+const shouldAbortWriteTransaction = (txMode: 'readonly' | 'readwrite', mode: MockIndexedDbMode) => {
+    return txMode === 'readwrite' && (mode === 'write-abort' || mode === 'clear-abort');
+};
+
+const triggerMockTransactionOutcome = (
+    txMode: 'readonly' | 'readwrite',
+    mode: MockIndexedDbMode,
+    tx: { onerror?: (() => void) | null; onabort?: (() => void) | null },
+) => {
+    if (shouldAbortReadTransaction(txMode, mode)) {
+        tx.onabort?.();
+        return;
+    }
+
+    if (shouldErrorWriteTransaction(txMode, mode)) {
+        tx.onerror?.();
+        return;
+    }
+
+    if (shouldAbortWriteTransaction(txMode, mode)) {
+        tx.onabort?.();
+    }
+};
+
+const createMockIndexedDbFactory = (mode: MockIndexedDbMode) => {
     const db = {
         close() {},
         transaction(_storeName: string, txMode: 'readonly' | 'readwrite') {
@@ -89,20 +121,7 @@ const createMockIndexedDbFactory = (mode: MockIndexedDbMode): IDBFactory => {
             };
 
             queueMicrotask(() => {
-                if (txMode === 'readonly' && mode === 'read-abort') {
-                    tx.onabort?.();
-                    return;
-                }
-
-                if (txMode === 'readwrite') {
-                    if (mode === 'write-error' || mode === 'clear-error') {
-                        tx.onerror?.();
-                        return;
-                    }
-                    if (mode === 'write-abort' || mode === 'clear-abort') {
-                        tx.onabort?.();
-                    }
-                }
+                triggerMockTransactionOutcome(txMode, mode, tx);
             });
 
             return tx as unknown as IDBTransaction;

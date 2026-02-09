@@ -1,5 +1,8 @@
 import type { RuntimeMessage, RuntimeResponseFor } from '@/types/messages';
 
-export const sendRuntimeMessage = async <T extends RuntimeMessage>(message: T): Promise<RuntimeResponseFor<T>> => {
+/**
+ * Typed wrapper around `chrome.runtime.sendMessage`.
+ */
+export const sendRuntimeMessage = async <T extends RuntimeMessage>(message: T) => {
     return chrome.runtime.sendMessage(message) as Promise<RuntimeResponseFor<T>>;
 };

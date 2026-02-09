@@ -14,28 +14,28 @@ const chromeMock: typeof chrome = {
     runtime: {
         id: 'test-extension-id',
         onMessage: {
-            addListener(listener: RuntimeListener): void {
+            addListener(listener: RuntimeListener) {
                 runtimeListeners.add(listener);
             },
-            removeListener(listener: RuntimeListener): void {
+            removeListener(listener: RuntimeListener) {
                 runtimeListeners.delete(listener);
             },
-            hasListener(listener: RuntimeListener): boolean {
+            hasListener(listener: RuntimeListener) {
                 return runtimeListeners.has(listener);
             },
         },
         onInstalled: {
-            addListener(listener: InstalledListener): void {
+            addListener(listener: InstalledListener) {
                 installedListeners.add(listener);
             },
-            removeListener(listener: InstalledListener): void {
+            removeListener(listener: InstalledListener) {
                 installedListeners.delete(listener);
             },
-            hasListener(listener: InstalledListener): boolean {
+            hasListener(listener: InstalledListener) {
                 return installedListeners.has(listener);
             },
         },
-        async sendMessage(message: unknown): Promise<unknown> {
+        async sendMessage(message: unknown) {
             const listener = Array.from(runtimeListeners).at(-1);
             if (!listener) {
                 return undefined;
@@ -57,7 +57,7 @@ const chromeMock: typeof chrome = {
             get(
                 keys?: string | string[] | Record<string, unknown> | null,
                 callback?: (items: Record<string, unknown>) => void,
-            ): Promise<Record<string, unknown>> | undefined {
+            ) {
                 const out: Record<string, unknown> = {};
 
                 if (!keys) {
@@ -83,7 +83,7 @@ const chromeMock: typeof chrome = {
 
                 return Promise.resolve(out);
             },
-            set(items: Record<string, unknown>, callback?: () => void): Promise<void> | undefined {
+            set(items: Record<string, unknown>, callback?: () => void) {
                 Object.entries(items).forEach(([key, value]) => {
                     storageState.set(key, value);
                 });
@@ -93,7 +93,7 @@ const chromeMock: typeof chrome = {
                 }
                 return Promise.resolve();
             },
-            remove(keys: string | string[], callback?: () => void): Promise<void> | undefined {
+            remove(keys: string | string[], callback?: () => void) {
                 if (Array.isArray(keys)) {
                     keys.forEach((key) => {
                         storageState.delete(key);
@@ -121,8 +121,8 @@ Object.defineProperty(globalThis, 'chrome', {
 
 Object.defineProperty(globalThis, '__wawaChromeMock', {
     value: {
-        clearStorage: (): void => storageState.clear(),
-        triggerInstalled: (): void => {
+        clearStorage: () => storageState.clear(),
+        triggerInstalled: () => {
             installedListeners.forEach((listener) => {
                 listener();
             });

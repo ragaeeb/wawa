@@ -1,4 +1,4 @@
-import type { ExportMeta, ResumePayload, TweetItem } from '@/types/domain';
+import type { ExportMeta, TweetItem } from '@/types/domain';
 
 export type ResumeParseResult = {
     tweets: TweetItem[];
@@ -6,7 +6,7 @@ export type ResumeParseResult = {
     username: string | null;
 };
 
-export const parseTweetDate = (dateStr: string | undefined): Date | null => {
+export const parseTweetDate = (dateStr: string | undefined) => {
     if (!dateStr) {
         return null;
     }
@@ -21,7 +21,7 @@ export const parseTweetDate = (dateStr: string | undefined): Date | null => {
     return Number.isNaN(parsed.getTime()) ? null : parsed;
 };
 
-export const extractTweetsFromExportData = (data: unknown): TweetItem[] => {
+export const extractTweetsFromExportData = (data: unknown) => {
     if (Array.isArray(data)) {
         return data as TweetItem[];
     }
@@ -39,7 +39,7 @@ export const extractTweetsFromExportData = (data: unknown): TweetItem[] => {
     return [];
 };
 
-export const parseResumeInput = (data: unknown): ResumeParseResult => {
+export const parseResumeInput = (data: unknown) => {
     const tweets = extractTweetsFromExportData(data);
 
     if (!data || typeof data !== 'object') {
@@ -57,7 +57,7 @@ export const parseResumeInput = (data: unknown): ResumeParseResult => {
     return { tweets, meta, username };
 };
 
-export const normalizeUsername = (username: unknown): string | null => {
+export const normalizeUsername = (username: unknown) => {
     if (typeof username !== 'string') {
         return null;
     }
@@ -70,7 +70,7 @@ export const buildResumePayload = (input: {
     tweets: TweetItem[];
     meta: ExportMeta | null;
     savedAt?: number;
-}): ResumePayload => {
+}) => {
     return {
         username: input.username.trim().replace(/^@/, '').toLowerCase(),
         saved_at: input.savedAt ?? Date.now(),

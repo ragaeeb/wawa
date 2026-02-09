@@ -15,6 +15,12 @@ export type FallbackStorage = {
     remove(key: string): Promise<void>;
 };
 
+/**
+ * Runtime contract used by the content script to persist and restore resume state.
+ *
+ * `persist` returns `false` when payload normalization fails or no backend is available.
+ * `restore` returns `null` when no payload exists, payload is stale, or username does not match.
+ */
 export type ResumeStorage = {
     persist(payload: ResumePayload): Promise<boolean>;
     restore(targetUsername?: string): Promise<ResumePayload | null>;
@@ -32,7 +38,7 @@ type SerializedManifest = {
     chunkCount: number;
 };
 
-const normalizeResumePayload = (payload: unknown): ResumePayload | null => {
+const normalizeResumePayload = (payload: unknown) => {
     if (!payload || typeof payload !== 'object') {
         return null;
     }
@@ -55,7 +61,7 @@ const normalizeResumePayload = (payload: unknown): ResumePayload | null => {
     });
 };
 
-const splitIntoChunks = (value: string, chunkSize: number): string[] => {
+const splitIntoChunks = (value: string, chunkSize: number) => {
     if (value.length === 0) {
         return [''];
     }
@@ -67,7 +73,7 @@ const splitIntoChunks = (value: string, chunkSize: number): string[] => {
     return chunks;
 };
 
-const parseSerializedManifest = (value: unknown): SerializedManifest | null => {
+const parseSerializedManifest = (value: unknown) => {
     if (!value || typeof value !== 'object') {
         return null;
     }
@@ -87,16 +93,16 @@ const parseSerializedManifest = (value: unknown): SerializedManifest | null => {
     };
 };
 
-const idbChunkKey = (index: number): string => {
+const idbChunkKey = (index: number) => {
     return `${IDB_CHUNK_PREFIX}${index}`;
 };
 
-const fallbackChunkKey = (index: number): string => {
+const fallbackChunkKey = (index: number) => {
     return `${FALLBACK_CHUNK_PREFIX}${index}`;
 };
 
-const openResumeDb = async (indexedDbFactory: IDBFactory): Promise<IDBDatabase> => {
-    return new Promise((resolve, reject) => {
+const openResumeDb = async (indexedDbFactory: IDBFactory) => {
+    const openPromise: Promise<IDBDatabase> = new Promise((resolve, reject) => {
         const request = indexedDbFactory.open(RESUME_DB.NAME, RESUME_DB.VERSION);
 
         request.onupgradeneeded = () => {
@@ -109,10 +115,12 @@ const openResumeDb = async (indexedDbFactory: IDBFactory): Promise<IDBDatabase> 
         request.onsuccess = () => resolve(request.result);
         request.onerror = () => reject(request.error ?? new Error('Failed to open IndexedDB for resume state'));
     });
+
+    return openPromise;
 };
 
-const readStoreValue = async (db: IDBDatabase, key: string): Promise<unknown> => {
-    return new Promise((resolve, reject) => {
+const readStoreValue = async (db: IDBDatabase, key: string) => {
+    const readPromise: Promise<unknown> = new Promise((resolve, reject) => {
         const tx = db.transaction(RESUME_DB.STORE, 'readonly');
         const request = tx.objectStore(RESUME_DB.STORE).get(key);
 
@@ -120,9 +128,11 @@ const readStoreValue = async (db: IDBDatabase, key: string): Promise<unknown> =>
         request.onerror = () => reject(request.error ?? new Error(`Failed to read IndexedDB key ${key}`));
         tx.onabort = () => reject(tx.error ?? new Error(`IndexedDB transaction aborted while reading key ${key}`));
     });
+
+    return readPromise;
 };
 
-const putResumePayload = async (indexedDbFactory: IDBFactory, payload: ResumePayload): Promise<void> => {
+const putResumePayload = async (indexedDbFactory: IDBFactory, payload: ResumePayload) => {
     const serialized = JSON.stringify(payload);
     const chunks = splitIntoChunks(serialized, SERIALIZED_CHUNK_SIZE);
     const db = await openResumeDb(indexedDbFactory);
@@ -147,7 +157,7 @@ const putResumePayload = async (indexedDbFactory: IDBFactory, payload: ResumePay
     db.close();
 };
 
-const getResumePayload = async (indexedDbFactory: IDBFactory): Promise<ResumePayload | null> => {
+const getResumePayload = async (indexedDbFactory: IDBFactory) => {
     const db = await openResumeDb(indexedDbFactory);
 
     const manifest = parseSerializedManifest(await readStoreValue(db, IDB_MANIFEST_KEY));
@@ -178,7 +188,7 @@ const getResumePayload = async (indexedDbFactory: IDBFactory): Promise<ResumePay
     return normalizeResumePayload(legacyPayload);
 };
 
-const clearResumePayload = async (indexedDbFactory: IDBFactory): Promise<void> => {
+const clearResumePayload = async (indexedDbFactory: IDBFactory) => {
     const db = await openResumeDb(indexedDbFactory);
 
     await new Promise<void>((resolve, reject) => {
@@ -193,22 +203,25 @@ const clearResumePayload = async (indexedDbFactory: IDBFactory): Promise<void> =
     db.close();
 };
 
-export const createChromeLocalFallbackStorage = (): FallbackStorage => {
+/**
+ * Wraps `chrome.storage.local` behind the fallback storage contract.
+ */
+export const createChromeLocalFallbackStorage = () => {
     return {
-        async get<T>(key: string): Promise<T | undefined> {
+        async get<T>(key: string) {
             const value = await chrome.storage.local.get([key]);
             return value[key] as T | undefined;
         },
-        async set<T>(key: string, value: T): Promise<void> {
+        async set<T>(key: string, value: T) {
             await chrome.storage.local.set({ [key]: value });
         },
-        async remove(key: string): Promise<void> {
+        async remove(key: string) {
             await chrome.storage.local.remove(key);
         },
     };
 };
 
-const writeFallbackPayload = async (fallbackStorage: FallbackStorage, payload: ResumePayload): Promise<void> => {
+const writeFallbackPayload = async (fallbackStorage: FallbackStorage, payload: ResumePayload) => {
     const serialized = JSON.stringify(payload);
     const chunks = splitIntoChunks(serialized, SERIALIZED_CHUNK_SIZE);
 
@@ -231,7 +244,7 @@ const writeFallbackPayload = async (fallbackStorage: FallbackStorage, payload: R
     }
 };
 
-const readFallbackPayload = async (fallbackStorage: FallbackStorage): Promise<ResumePayload | null> => {
+const readFallbackPayload = async (fallbackStorage: FallbackStorage) => {
     const raw = await fallbackStorage.get<unknown>(STORAGE_KEYS.RESUME_PAYLOAD_FALLBACK);
     const normalizedRaw = normalizeResumePayload(raw);
     if (normalizedRaw) {
@@ -259,7 +272,7 @@ const readFallbackPayload = async (fallbackStorage: FallbackStorage): Promise<Re
     }
 };
 
-const clearFallbackPayload = async (fallbackStorage: FallbackStorage): Promise<void> => {
+const clearFallbackPayload = async (fallbackStorage: FallbackStorage) => {
     const raw = await fallbackStorage.get<unknown>(STORAGE_KEYS.RESUME_PAYLOAD_FALLBACK);
     const manifest = parseSerializedManifest(raw);
 
@@ -272,12 +285,21 @@ const clearFallbackPayload = async (fallbackStorage: FallbackStorage): Promise<v
     await fallbackStorage.remove(STORAGE_KEYS.RESUME_PAYLOAD_FALLBACK);
 };
 
-export const createResumeStorage = (options: ResumeStorageOptions = {}): ResumeStorage => {
+/**
+ * Creates resume-state persistence with IndexedDB primary and optional chrome.storage fallback.
+ *
+ * Storage behavior:
+ * - IndexedDB stores payloads as chunked JSON (quota-safe for large exports).
+ * - Fallback storage uses the same chunked manifest format.
+ * - Restores are rejected when payload age exceeds `maxAgeMs`.
+ * - Optional username match prevents cross-account resume contamination.
+ */
+export const createResumeStorage = (options: ResumeStorageOptions = {}) => {
     const indexedDbFactory = options.indexedDbFactory;
     const fallbackStorage = options.fallbackStorage;
     const maxAgeMs = options.maxAgeMs ?? DEFAULT_MAX_AGE_MS;
 
-    const persist = async (payload: ResumePayload): Promise<boolean> => {
+    const persist = async (payload: ResumePayload) => {
         const normalized = normalizeResumePayload(payload);
         if (!normalized) {
             return false;
@@ -304,7 +326,7 @@ export const createResumeStorage = (options: ResumeStorageOptions = {}): ResumeS
         }
     };
 
-    const restore = async (targetUsername?: string): Promise<ResumePayload | null> => {
+    const restore = async (targetUsername?: string) => {
         let payload: ResumePayload | null = null;
 
         if (indexedDbFactory) {
@@ -336,7 +358,7 @@ export const createResumeStorage = (options: ResumeStorageOptions = {}): ResumeS
         return payload;
     };
 
-    const clear = async (): Promise<void> => {
+    const clear = async () => {
         if (indexedDbFactory) {
             try {
                 await clearResumePayload(indexedDbFactory);
