@@ -1,5 +1,5 @@
-import { bootstrapLegacyContentScript } from "./bootstrap";
+import { bootstrapLegacyContentScript } from './bootstrap';
 
-export async function bootstrapContentScript(): Promise<void> {
-  await bootstrapLegacyContentScript();
-}
+export const bootstrapContentScript = async (): Promise<void> => {
+    await bootstrapLegacyContentScript();
+};

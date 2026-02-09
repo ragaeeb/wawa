@@ -1,5 +1,5 @@
-import { bootstrapBackground } from "../src/background/index";
+import { bootstrapBackground } from '../src/background/index';
 
 export default defineBackground(() => {
-  bootstrapBackground();
+    bootstrapBackground();
 });
