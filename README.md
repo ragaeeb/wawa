@@ -9,7 +9,7 @@
 [![Bun](https://img.shields.io/badge/Bun-1.3.9-black.svg)](https://bun.sh)
 [![Chrome Web Store](https://img.shields.io/badge/Chrome-Extension-green.svg)](https://chrome.google.com/webstore)
 
-> **Wawa** (formerly Wawa Minimal) is a privacy-focused Chrome extension for complete local exports of your X/Twitter data—no telemetry, no server uploads, just your data on your machine.
+> **Wawa** is a privacy-focused Chrome extension for complete local exports of your X/Twitter data—no telemetry, no server uploads, just your data on your machine.
 
 ## ✨ Features
 

@@ -16,7 +16,7 @@ export default defineConfig({
     outDir: '.output',
     modules: [],
     manifest: {
-        name: 'Wawa Minimal',
+        name: 'Wawa',
         description: 'Minimal local export of X/Twitter posts without telemetry.',
         version: packageJson.version,
         permissions: ['storage', 'unlimitedStorage'],
@@ -29,7 +29,7 @@ export default defineConfig({
         },
         host_permissions: ['*://*.x.com/*', '*://*.twitter.com/*'],
         action: {
-            default_title: 'Wawa Minimal',
+            default_title: 'Wawa',
             default_icon: {
                 '16': 'icons/16.png',
                 '32': 'icons/32.png',

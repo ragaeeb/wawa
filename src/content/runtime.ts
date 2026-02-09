@@ -673,7 +673,7 @@ import { createChromeLocalFallbackStorage, createResumeStorage } from '@/core/re
 
     const urlObserver = observeUrlChanges(initializeOrUpdate);
 
-    logInfo('Wawa Minimal content script loaded');
+    logInfo('Wawa content script loaded');
 
     bootstrapAutoStart({
         key: 'wawa_search_autostart',
