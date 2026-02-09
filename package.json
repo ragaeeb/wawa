@@ -1,0 +1,29 @@
+{
+  "name": "twexport-minimal",
+  "description": "Local export of X/Twitter posts without telemetry.",
+  "private": true,
+  "version": "0.4.0",
+  "type": "module",
+  "scripts": {
+    "dev": "wxt",
+    "build": "wxt build",
+    "zip": "wxt zip",
+    "typecheck": "tsc --noEmit",
+    "lint": "biome check .",
+    "format": "biome format --write .",
+    "test": "bun test",
+    "test:coverage": "bun test --coverage --coverage-reporter=lcov && bun run scripts/check-core-coverage.ts",
+    "release:version": "bun run scripts/semantic-version-bump.ts",
+    "check": "bun run typecheck && bun run lint && bun run test:coverage",
+    "postinstall": "wxt prepare"
+  },
+  "devDependencies": {
+    "@biomejs/biome": "^2.3.14",
+    "@happy-dom/global-registrator": "^20.5.3",
+    "@types/chrome": "^0.1.36",
+    "fake-indexeddb": "^6.2.5",
+    "happy-dom": "^20.5.3",
+    "typescript": "^5.9.3",
+    "wxt": "^0.20.14"
+  }
+}

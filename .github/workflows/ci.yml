@@ -1,0 +1,43 @@
+name: CI
+
+on:
+  push:
+    branches: ["**"]
+  pull_request:
+
+jobs:
+  test-and-build:
+    if: ${{ github.event_name == 'pull_request' || !contains(github.event.head_commit.message, '[skip ci]') }}
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+
+      - name: Install Dependencies
+        run: bun install --frozen-lockfile
+
+      - name: Typecheck
+        run: bun run typecheck
+
+      - name: Lint
+        run: bun run lint
+
+      - name: Unit and Integration Tests
+        run: bun run test:coverage
+
+      - name: Build Extension
+        run: bun run build
+
+      - name: Zip Extension
+        run: bun run zip
+
+      - name: Upload Build Artifacts
+        uses: actions/upload-artifact@v6
+        with:
+          name: twexport-chrome-build
+          path: .output/**

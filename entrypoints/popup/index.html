@@ -1,0 +1,26 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>TwExport Minimal</title>
+    <meta name="manifest.type" content="action" />
+  </head>
+  <body>
+    <main class="wrap">
+      <h1>TwExport Minimal</h1>
+      <p class="sub">Navigate to any X/Twitter profile and click the "📜 Export Tweets" button.</p>
+
+      <div class="status" id="status"></div>
+
+      <h2>Debug Logs</h2>
+      <div class="log-controls">
+        <button id="refreshLogs" class="secondary small" type="button">Refresh</button>
+        <button id="clearLogs" class="secondary small" type="button">Clear</button>
+      </div>
+      <pre class="log" id="log"></pre>
+    </main>
+
+    <script type="module" src="./main.ts"></script>
+  </body>
+</html>
