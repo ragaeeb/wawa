@@ -38,12 +38,13 @@ export const sortTweetsByCreatedAtDescending = (tweets: AnyRecord[], parseTweetD
     });
 };
 
-export const createSearchAutoStartContext = (username: string, extra: Record<string, unknown> = {}) => ({
-    username,
-    autoStart: true,
-    timestamp: Date.now(),
-    ...extra,
-});
+export const createSearchAutoStartContext = <T extends Record<string, unknown>>(username: string, extra: T = {} as T) =>
+    ({
+        username,
+        autoStart: true,
+        timestamp: Date.now(),
+        ...extra,
+    }) as { username: string; autoStart: true; timestamp: number } & T;
 
 export const normalizeResumeUsername = (value: unknown) => {
     return String(value || 'unknown')

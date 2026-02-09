@@ -6,12 +6,18 @@
             "@/*": ["src/*"]
         },
         "strict": true,
-        "noUncheckedIndexedAccess": true,
         "exactOptionalPropertyTypes": true,
         "noImplicitOverride": true,
         "useUnknownInCatchVariables": true,
-        "lib": ["ES2022", "DOM", "DOM.Iterable"]
+        "lib": ["ESNext", "DOM", "DOM.Iterable"]
     },
-    "include": ["entrypoints/**/*.ts", "src/**/*.ts", "wxt.config.ts", ".wxt/wxt.d.ts"],
+    "include": [
+        "entrypoints/**/*.ts",
+        "entrypoints/**/*.d.ts",
+        "src/**/*.ts",
+        "src/**/*.d.ts",
+        "wxt.config.ts",
+        ".wxt/wxt.d.ts"
+    ],
     "exclude": ["tests", ".output", "node_modules"]
 }

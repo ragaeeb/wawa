@@ -28,7 +28,7 @@ jobs:
         run: bun run lint
 
       - name: Unit and Integration Tests
-        run: bun run test:coverage
+        run: bun test --coverage --coverage-reporter=lcov
 
       - name: Build Extension
         run: bun run build
@@ -41,3 +41,8 @@ jobs:
         with:
           name: wawa-chrome-build
           path: .output/**
+
+      - name: Upload results to Codecov
+        uses: codecov/codecov-action@v5
+        with:
+            token: ${{ secrets.CODECOV_TOKEN }}

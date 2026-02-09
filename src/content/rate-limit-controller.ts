@@ -38,7 +38,7 @@ const calculateDynamicDelay = (remaining: number) => {
 /**
  * Creates mutable runtime rate-limit counters used by scroll pacing logic.
  */
-export const createRateLimitState = () => ({
+export const createRateLimitState = (): RateLimitState => ({
     mode: 'normal',
     requestCount: 0,
     limit: 150,

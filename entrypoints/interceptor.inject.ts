@@ -155,9 +155,9 @@ export default defineUnlistedScript(() => {
     const originalFetch = window.fetch;
     (window as { __wawaOriginalFetch?: typeof window.fetch }).__wawaOriginalFetch = originalFetch;
 
-    window.fetch = async function (...args: Parameters<typeof fetch>): Promise<Response> {
+    const interceptedFetch = async (...args: Parameters<typeof fetch>): Promise<Response> => {
         const url = extractUrlFromRequest(args[0]);
-        const response = await originalFetch.apply(this, args);
+        const response = await originalFetch(...args);
 
         if (response.status === 429) {
             handleRateLimitResponse(url, extractRateLimitHeaders(response.headers));
@@ -179,6 +179,8 @@ export default defineUnlistedScript(() => {
 
         return response;
     };
+
+    window.fetch = Object.assign(interceptedFetch, originalFetch) as typeof fetch;
 
     const originalOpen = XMLHttpRequest.prototype.open;
     const originalSend = XMLHttpRequest.prototype.send;

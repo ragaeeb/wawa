@@ -1,5 +1,7 @@
 # Wawa
 
+[![wakatime](https://wakatime.com/badge/user/a0b906ce-b8e7-4463-8bce-383238df6d4b/project/ebf7bc77-8963-4111-a529-44493103d104.svg)](https://wakatime.com/badge/user/a0b906ce-b8e7-4463-8bce-383238df6d4b/project/ebf7bc77-8963-4111-a529-44493103d104)
+[![codecov](https://codecov.io/gh/ragaeeb/wawa/graph/badge.svg?token=U3L07NUFHW)](https://codecov.io/gh/ragaeeb/wawa)
 [![CI](https://github.com/ragaeeb/wawa/actions/workflows/ci.yml/badge.svg)](https://github.com/ragaeeb/wawa/actions/workflows/ci.yml)
 [![Release](https://github.com/ragaeeb/wawa/actions/workflows/release.yml/badge.svg)](https://github.com/ragaeeb/wawa/actions/workflows/release.yml)
 [![License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)

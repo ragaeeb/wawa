@@ -19,7 +19,7 @@ export type ResumeSessionState = {
 /**
  * Creates in-memory resume state for the current tab runtime.
  */
-export const createResumeSessionState = () => ({
+export const createResumeSessionState = (): ResumeSessionState => ({
     previousTweets: [],
     previousExportMeta: null,
     isResumeMode: false,
