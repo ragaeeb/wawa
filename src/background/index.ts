@@ -1,6 +1,6 @@
-import { createBackgroundService, createChromeSettingsStore } from '../core/background/service';
-import { DEFAULT_SETTINGS } from '../platform/chrome/storage';
-import type { RuntimeMessage } from '../types/messages';
+import { createBackgroundService, createChromeSettingsStore } from '@/core/background/service';
+import { DEFAULT_SETTINGS } from '@/platform/chrome/storage';
+import type { RuntimeMessage } from '@/types/messages';
 
 let backgroundStarted = false;
 

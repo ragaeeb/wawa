@@ -77,7 +77,7 @@ window.fetch = async (...args) => {
   if (url.includes('/graphql/') && url.includes('UserTweets')) {
     const data = await response.clone().json();
     window.postMessage({
-      type: 'TWEXPORT_INTERCEPTED_RESPONSE',
+      type: 'WAWA_INTERCEPTED_RESPONSE',
       payload: { url, data, rateLimitInfo }
     }, '*');
   }
@@ -231,7 +231,7 @@ bun run build
 
 # Create distributable zip
 bun run zip
-# Output: .output/twexport-minimal-{version}-chrome.zip
+# Output: .output/wawa-minimal-{version}-chrome.zip
 ```
 
 ### Testing
@@ -646,7 +646,7 @@ $ bun run test:coverage
 
 ### Resume Not Working
 
-1. **Check IndexedDB**: DevTools → Application → IndexedDB → `twexport_resume_db`
+1. **Check IndexedDB**: DevTools → Application → IndexedDB → `wawa_resume_db`
 2. **Verify fallback**: DevTools → Application → Storage → `chrome.storage.local`
 3. **Test with smaller dataset**: <1000 tweets to isolate chunking issues
 4. **Check age**: Payloads expire after 6 hours
@@ -755,8 +755,8 @@ import { chrome } from '../../platform/chrome'; // NO!
 
 ```typescript
 // Storage
-RESUME_DB.NAME = 'twexport_resume_db'
-STORAGE_KEYS.RESUME_PAYLOAD_FALLBACK = 'twexport_resume_payload'
+RESUME_DB.NAME = 'wawa_resume_db'
+STORAGE_KEYS.RESUME_PAYLOAD_FALLBACK = 'wawa_resume_payload'
 
 // Limits
 MAX_LOG_ENTRIES = 500

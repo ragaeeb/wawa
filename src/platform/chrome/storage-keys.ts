@@ -1,10 +1,10 @@
 export const STORAGE_KEYS = {
-    SEARCH_AUTOSTART: 'twexport_search_autostart',
-    RESUME_PAYLOAD_FALLBACK: 'twexport_resume_payload',
+    SEARCH_AUTOSTART: 'wawa_search_autostart',
+    RESUME_PAYLOAD_FALLBACK: 'wawa_resume_payload',
 } as const;
 
 export const RESUME_DB = {
-    NAME: 'twexport_resume_db',
+    NAME: 'wawa_resume_db',
     VERSION: 1,
     STORE: 'resume_payloads',
     ACTIVE_KEY: 'active',

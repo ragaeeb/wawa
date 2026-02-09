@@ -1,4 +1,4 @@
-import type { ExtensionSettings } from '../../types/domain';
+import type { ExtensionSettings } from '@/types/domain';
 
 export const DEFAULT_SETTINGS: ExtensionSettings = {
     minimalData: true,

@@ -61,4 +61,4 @@ jobs:
         with:
           tag_name: v${{ steps.bump.outputs.version }}
           name: v${{ steps.bump.outputs.version }}
-          files: .output/twexport-minimal-${{ steps.bump.outputs.version }}-chrome.zip
+          files: .output/wawa-minimal-${{ steps.bump.outputs.version }}-chrome.zip

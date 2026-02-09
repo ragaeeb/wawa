@@ -159,7 +159,7 @@ Wawa is not affiliated with X Corp or Twitter, Inc. This is an independent tool 
   "minimalData": true,
   "includeReplies": false,
   "maxCount": 0,
-  "twexport_resume_payload": {
+  "wawa_resume_payload": {
     "username": "johndoe",
     "tweets": [...],
     "saved_at": 1707350400000
@@ -192,7 +192,7 @@ Wawa is not affiliated with X Corp or Twitter, Inc. This is an independent tool 
 - Resume functionality would be impossible for any meaningful export
 
 **How It's Used**:
-- Stores temporary export payloads in IndexedDB (`twexport_resume_db`)
+- Stores temporary export payloads in IndexedDB (`wawa_resume_db`)
 - Data is chunked into 512KB pieces for efficient storage
 - Automatically deleted after export completion or 6-hour expiry
 

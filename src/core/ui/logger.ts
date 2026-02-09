@@ -1,4 +1,4 @@
-import type { LogEntry, LogLevel } from '../../types/domain';
+import type { LogEntry, LogLevel } from '@/types/domain';
 
 export const buildLogEntry = (level: LogLevel, message: string, data?: unknown): LogEntry => {
     return {
@@ -10,7 +10,7 @@ export const buildLogEntry = (level: LogLevel, message: string, data?: unknown):
 };
 
 export const emitConsoleLog = (entry: LogEntry): void => {
-    const prefix = `[TwExport ${entry.timestamp.split('T')[1]?.split('.')[0] ?? ''}]`;
+    const prefix = `[Wawa ${entry.timestamp.split('T')[1]?.split('.')[0] ?? ''}]`;
 
     if (entry.level === 'error') {
         console.error(prefix, entry.message, entry.data ?? '');

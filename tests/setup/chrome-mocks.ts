@@ -119,7 +119,7 @@ Object.defineProperty(globalThis, 'chrome', {
     writable: true,
 });
 
-Object.defineProperty(globalThis, '__twexportChromeMock', {
+Object.defineProperty(globalThis, '__wawaChromeMock', {
     value: {
         clearStorage: (): void => storageState.clear(),
         triggerInstalled: (): void => {

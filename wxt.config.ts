@@ -14,8 +14,15 @@ export default defineConfig({
     srcDir: '.',
     outDir: '.output',
     modules: [],
+    vite: () => ({
+        resolve: {
+            alias: {
+                '@': resolve(rootDir, 'src'),
+            },
+        },
+    }),
     manifest: {
-        name: 'TwExport Minimal',
+        name: 'Wawa Minimal',
         description: 'Minimal local export of X/Twitter posts without telemetry.',
         version: packageJson.version,
         permissions: ['storage', 'unlimitedStorage'],
@@ -28,7 +35,7 @@ export default defineConfig({
         },
         host_permissions: ['*://*.x.com/*', '*://*.twitter.com/*'],
         action: {
-            default_title: 'TwExport Minimal',
+            default_title: 'Wawa Minimal',
             default_icon: {
                 '16': 'icons/16.png',
                 '32': 'icons/32.png',

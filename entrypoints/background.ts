@@ -1,4 +1,4 @@
-import { bootstrapBackground } from '../src/background/index';
+import { bootstrapBackground } from '@/background/index';
 
 export default defineBackground(() => {
     bootstrapBackground();

@@ -1,4 +1,4 @@
-import type { ExportMeta, MergeInfo } from '../../types/domain';
+import type { ExportMeta, MergeInfo } from '@/types/domain';
 
 export type BuildMetaInput = {
     username: string;
@@ -32,40 +32,76 @@ const earliestIsoDate = (...values: Array<string | undefined>): string | undefin
     return dates[0]?.toISOString();
 };
 
-export const buildConsolidatedMeta = (input: BuildMetaInput): ExportMeta => {
-    const previous = input.previousMeta;
-    const previousReportedField = typeof previous?.reported_count === 'number' ? previous.reported_count : Number.NaN;
-    const previousTotalReportedField =
-        typeof previous?.total_tweets_reported === 'number' ? previous.total_tweets_reported : Number.NaN;
-    const previousReported = Number(
-        Number.isFinite(previousReportedField) ? previousReportedField : previousTotalReportedField,
-    );
+const extractPreviousReportedCount = (previousMeta: ExportMeta | null | undefined): number => {
+    if (!previousMeta) {
+        return Number.NaN;
+    }
 
-    const reportedCandidates = [input.reportedCountCurrent, previousReported].filter(
+    const reportedField = typeof previousMeta.reported_count === 'number' ? previousMeta.reported_count : Number.NaN;
+    const totalReportedField =
+        typeof previousMeta.total_tweets_reported === 'number' ? previousMeta.total_tweets_reported : Number.NaN;
+
+    return Number(Number.isFinite(reportedField) ? reportedField : totalReportedField);
+};
+
+const calculateBestReportedCount = (
+    currentReported: number | null | undefined,
+    previousReported: number,
+): number | null => {
+    const candidates = [currentReported, previousReported].filter(
         (value): value is number => Number.isFinite(value as number) && Number(value) > 0,
     );
 
-    const priorCaptured = Number(previous?.scroll_responses_captured ?? Number.NaN);
-    const priorCapturedSafe = Number.isFinite(priorCaptured) && priorCaptured > 0 ? priorCaptured : 0;
+    return candidates.length > 0 ? Math.max(...candidates) : null;
+};
 
-    const previousStartedAt =
-        typeof previous?.export_started_at === 'string'
-            ? previous.export_started_at
-            : typeof previous?.started_at === 'string'
-              ? previous.started_at
-              : undefined;
+const extractPreviousScrollResponsesCaptured = (previousMeta: ExportMeta | null | undefined): number => {
+    const priorCaptured = Number(previousMeta?.scroll_responses_captured ?? Number.NaN);
+    return Number.isFinite(priorCaptured) && priorCaptured > 0 ? priorCaptured : 0;
+};
 
-    const previousCompletedAt =
-        typeof previous?.export_completed_at === 'string'
-            ? previous.export_completed_at
-            : typeof previous?.finished_at === 'string'
-              ? previous.finished_at
-              : undefined;
+const extractPreviousStartedAt = (previousMeta: ExportMeta | null | undefined): string | undefined => {
+    if (!previousMeta) {
+        return undefined;
+    }
+
+    return typeof previousMeta.export_started_at === 'string'
+        ? previousMeta.export_started_at
+        : typeof previousMeta.started_at === 'string'
+          ? previousMeta.started_at
+          : undefined;
+};
+
+const extractPreviousCompletedAt = (previousMeta: ExportMeta | null | undefined): string | undefined => {
+    if (!previousMeta) {
+        return undefined;
+    }
+
+    return typeof previousMeta.export_completed_at === 'string'
+        ? previousMeta.export_completed_at
+        : typeof previousMeta.finished_at === 'string'
+          ? previousMeta.finished_at
+          : undefined;
+};
+
+const calculateConsolidatedCount = (input: BuildMetaInput): number => {
+    return input.mergeInfo ? input.mergeInfo.final_count : input.newCollectedCount + input.previousCollectedCount;
+};
+
+const calculateTotalScrollResponsesCaptured = (input: BuildMetaInput, previousCaptured: number): number => {
+    return input.scrollResponsesCapturedCurrent + (input.mergeInfo ? previousCaptured : 0);
+};
+
+export const buildConsolidatedMeta = (input: BuildMetaInput): ExportMeta => {
+    const previousReported = extractPreviousReportedCount(input.previousMeta);
+    const reportedCount = calculateBestReportedCount(input.reportedCountCurrent, previousReported);
+    const previousCaptured = extractPreviousScrollResponsesCaptured(input.previousMeta);
+    const previousStartedAt = extractPreviousStartedAt(input.previousMeta);
+    const previousCompletedAt = extractPreviousCompletedAt(input.previousMeta);
 
     const effectiveStart = earliestIsoDate(previousStartedAt, input.startedAt) ?? input.startedAt;
-    const consolidatedCount = input.mergeInfo
-        ? input.mergeInfo.final_count
-        : input.newCollectedCount + input.previousCollectedCount;
+    const consolidatedCount = calculateConsolidatedCount(input);
+    const totalScrollResponses = calculateTotalScrollResponsesCaptured(input, previousCaptured);
 
     const meta: ExportMeta = {
         username: input.username,
@@ -74,9 +110,9 @@ export const buildConsolidatedMeta = (input: BuildMetaInput): ExportMeta => {
         collected_count: consolidatedCount,
         new_collected_count: input.newCollectedCount,
         previous_collected_count: input.previousCollectedCount,
-        reported_count: reportedCandidates.length > 0 ? Math.max(...reportedCandidates) : null,
+        reported_count: reportedCount,
         collection_method: input.collectionMethod,
-        scroll_responses_captured: input.scrollResponsesCapturedCurrent + (input.mergeInfo ? priorCapturedSafe : 0),
+        scroll_responses_captured: totalScrollResponses,
     };
 
     if (input.userId) {

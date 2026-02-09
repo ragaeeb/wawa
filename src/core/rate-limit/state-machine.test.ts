@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'bun:test';
-import { createInitialLifecycle, reduceExportLifecycle, shouldPromptLooksDone } from './state';
+import { createInitialLifecycle, reduceExportLifecycle, shouldPromptLooksDone } from '@/core/rate-limit/state';
 
 describe('rate limit lifecycle state machine', () => {
     it('should transition cooldown -> running and reset activity timestamp', () => {

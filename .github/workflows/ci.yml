@@ -39,5 +39,5 @@ jobs:
       - name: Upload Build Artifacts
         uses: actions/upload-artifact@v6
         with:
-          name: twexport-chrome-build
+          name: wawa-chrome-build
           path: .output/**

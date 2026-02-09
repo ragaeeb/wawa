@@ -3,7 +3,7 @@
   "configVersion": 1,
   "workspaces": {
     "": {
-      "name": "twexport-minimal",
+      "name": "wawa-minimal",
       "devDependencies": {
         "@biomejs/biome": "latest",
         "@happy-dom/global-registrator": "latest",

@@ -1,4 +1,4 @@
-import type { ExportSummary, ExtensionSettings, LogEntry } from './domain';
+import type { ExportSummary, ExtensionSettings, LogEntry } from '@/types/domain';
 
 export type LogMessage = {
     type: 'log';

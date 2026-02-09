@@ -1,6 +1,6 @@
-import { DEFAULT_SETTINGS, getSettings as getStoredSettings, saveSettings } from '../../platform/chrome/storage';
-import type { ExportSummary, ExtensionSettings, LogEntry } from '../../types/domain';
-import type { RuntimeMessage, RuntimeResponseMap } from '../../types/messages';
+import { DEFAULT_SETTINGS, getSettings as getStoredSettings, saveSettings } from '@/platform/chrome/storage';
+import type { ExportSummary, ExtensionSettings, LogEntry } from '@/types/domain';
+import type { RuntimeMessage, RuntimeResponseMap } from '@/types/messages';
 
 export type BackgroundState = {
     logs: LogEntry[];

@@ -44,7 +44,7 @@ All data processing occurs **entirely within your browser**:
 
 ### Local Storage Only
 
-1. **IndexedDB** (`twexport_resume_db`)
+1. **IndexedDB** (`wawa_resume_db`)
    - **Purpose**: Stores in-progress exports to enable pause/resume functionality
    - **Location**: Your browser's local IndexedDB storage
    - **Retention**: Automatically deleted 6 hours after last activity or when you complete an export

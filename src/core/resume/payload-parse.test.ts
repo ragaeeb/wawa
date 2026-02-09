@@ -5,7 +5,7 @@ import {
     normalizeUsername,
     parseResumeInput,
     parseTweetDate,
-} from './payload';
+} from '@/core/resume/payload';
 
 describe('resume payload parsing', () => {
     it('should accept items array format', () => {
@@ -47,7 +47,7 @@ describe('resume payload parsing', () => {
         expect(parsed.meta?.username).toBe('  @AnotherUser  ');
     });
 
-    it('should parse custom TwExport date string', () => {
+    it('should parse custom Wawa date string', () => {
         const parsed = parseTweetDate('2014-01-29 06:15:43');
         expect(parsed?.toISOString()).toBe('2014-01-29T06:15:43.000Z');
     });

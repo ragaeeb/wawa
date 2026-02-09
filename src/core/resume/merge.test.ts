@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'bun:test';
-import type { TweetItem } from '../../types/domain';
-import { mergeTweets } from './merge';
+import { mergeTweets } from '@/core/resume/merge';
+import type { TweetItem } from '@/types/domain';
 
 describe('resume merge', () => {
     it('should dedupe by id and preserve both previous and new tweets', () => {

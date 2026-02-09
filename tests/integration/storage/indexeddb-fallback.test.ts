@@ -1,12 +1,8 @@
 import { beforeEach, describe, expect, it } from 'bun:test';
 import { indexedDB as fakeIndexedDb } from 'fake-indexeddb';
-import { buildResumePayload } from '../../../src/core/resume/payload';
-import {
-    createChromeLocalFallbackStorage,
-    createResumeStorage,
-    type FallbackStorage,
-} from '../../../src/core/resume/storage';
-import { RESUME_DB, STORAGE_KEYS } from '../../../src/platform/chrome/storage-keys';
+import { buildResumePayload } from '@/core/resume/payload';
+import { createChromeLocalFallbackStorage, createResumeStorage, type FallbackStorage } from '@/core/resume/storage';
+import { RESUME_DB, STORAGE_KEYS } from '@/platform/chrome/storage-keys';
 
 class MemoryFallbackStorage implements FallbackStorage {
     private readonly store = new Map<string, unknown>();

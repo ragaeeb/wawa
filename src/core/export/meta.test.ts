@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'bun:test';
-import { buildConsolidatedMeta } from './meta';
+import { buildConsolidatedMeta } from '@/core/export/meta';
 
 describe('export metadata assembly', () => {
     it('should build accurate consolidated metadata for resumed exports', () => {
@@ -55,5 +55,28 @@ describe('export metadata assembly', () => {
         expect(meta.reported_count).toBe(50);
         expect(meta.scroll_responses_captured).toBe(8);
         expect(meta.merge_info).toBe(undefined);
+    });
+
+    it('should fallback to legacy started_at and finished_at fields', () => {
+        const meta = buildConsolidatedMeta({
+            username: 'example',
+            startedAt: '2026-03-01T10:00:00.000Z',
+            completedAt: '2026-03-01T11:00:00.000Z',
+            newCollectedCount: 10,
+            previousCollectedCount: 5,
+            reportedCountCurrent: null,
+            previousMeta: {
+                username: 'example',
+                started_at: '2026-02-01T10:00:00.000Z',
+                finished_at: '2026-02-01T11:00:00.000Z',
+            },
+            collectionMethod: 'scroll-interception-resumed',
+            scrollResponsesCapturedCurrent: 2,
+            mergeInfo: null,
+        });
+
+        expect(meta.previous_export_started_at).toBe('2026-02-01T10:00:00.000Z');
+        expect(meta.previous_export_completed_at).toBe('2026-02-01T11:00:00.000Z');
+        expect(meta.export_started_at).toBe('2026-02-01T10:00:00.000Z');
     });
 });

@@ -7,7 +7,7 @@
 [![Bun](https://img.shields.io/badge/Bun-1.3.9-black.svg)](https://bun.sh)
 [![Chrome Web Store](https://img.shields.io/badge/Chrome-Extension-green.svg)](https://chrome.google.com/webstore)
 
-> **Wawa** (formerly TwExport Minimal) is a privacy-focused Chrome extension for complete local exports of your X/Twitter data—no telemetry, no server uploads, just your data on your machine.
+> **Wawa** (formerly Wawa Minimal) is a privacy-focused Chrome extension for complete local exports of your X/Twitter data—no telemetry, no server uploads, just your data on your machine.
 
 ## ✨ Features
 
@@ -188,13 +188,13 @@ const { logs } = await sendMessage({ type: 'getLogs' });
 **Two-Tier Strategy**:
 
 1. **Primary: IndexedDB**
-   - **Database**: `twexport_resume_db`
+   - **Database**: `wawa_resume_db`
    - **Store**: `resume_payloads`
    - **Advantages**: Unlimited storage (with user permission), async API
    - **Challenges**: Can fail in incognito mode, quota prompts
 
 2. **Fallback: chrome.storage.local**
-   - **Key**: `twexport_resume_payload`
+   - **Key**: `wawa_resume_payload`
    - **Advantages**: Always available, no quota prompts for extensions
    - **Limitations**: 10MB total limit for entire extension
 
@@ -318,7 +318,7 @@ if (response.status === 429) {
   };
   
   window.postMessage({
-    type: 'TWEXPORT_RATE_LIMIT',
+    type: 'WAWA_RATE_LIMIT',
     payload: { rateLimitInfo }
   }, '*');
 }
@@ -629,11 +629,11 @@ sendMessage({ type: 'log', entry }); // Sends to background for popup display
 ```
 
 **View Logs**:
-1. **Browser Console**: DevTools → Console → Filter `[TwExport]`
+1. **Browser Console**: DevTools → Console → Filter `[Wawa]`
 2. **Extension Popup**: Click extension icon → Debug Logs section
 
 **Inspect Storage**:
-1. **IndexedDB**: DevTools → Application → IndexedDB → `twexport_resume_db`
+1. **IndexedDB**: DevTools → Application → IndexedDB → `wawa_resume_db`
 2. **Chrome Storage**: DevTools → Application → Storage → Extension → `chrome.storage.local`
 
 ## 📦 Release Process

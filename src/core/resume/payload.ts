@@ -1,4 +1,4 @@
-import type { ExportMeta, ResumePayload, TweetItem } from '../../types/domain';
+import type { ExportMeta, ResumePayload, TweetItem } from '@/types/domain';
 
 export type ResumeParseResult = {
     tweets: TweetItem[];

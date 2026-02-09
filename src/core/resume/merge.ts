@@ -9,8 +9,8 @@
  * - Tracking merge statistics for metadata
  */
 
-import type { MergeInfo, TweetItem } from '../../types/domain';
-import { parseTweetDate } from './payload';
+import { parseTweetDate } from '@/core/resume/payload';
+import type { MergeInfo, TweetItem } from '@/types/domain';
 
 /**
  * Result of merging two tweet collections.

@@ -1,5 +1,5 @@
-import { sendRuntimeMessage } from '../../src/platform/chrome/runtime';
-import type { LogEntry } from '../../src/types/domain';
+import { sendRuntimeMessage } from '@/platform/chrome/runtime';
+import type { LogEntry } from '@/types/domain';
 import './style.css';
 
 const elements = {

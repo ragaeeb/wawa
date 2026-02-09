@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'bun:test';
-import { buildConsolidatedMeta } from '../../src/core/export/meta';
-import { mergeTweets } from '../../src/core/resume/merge';
-import { parseResumeInput } from '../../src/core/resume/payload';
+import { buildConsolidatedMeta } from '@/core/export/meta';
+import { mergeTweets } from '@/core/resume/merge';
+import { parseResumeInput } from '@/core/resume/payload';
 
 describe('resume flow integration', () => {
     it('should parse prior export, merge with new tweets, and create accurate top metadata', () => {

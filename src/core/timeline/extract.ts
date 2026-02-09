@@ -168,6 +168,98 @@ export const getTimelineInstructions = (data: unknown): TimelineInstruction[] =>
     );
 };
 
+const isPromotedTweet = (entryId: string): boolean => {
+    return entryId.startsWith('promoted-tweet-');
+};
+
+const isTweetEntry = (entryId: string): boolean => {
+    return entryId.startsWith('tweet-');
+};
+
+const isConversationEntry = (entryId: string): boolean => {
+    return entryId.startsWith('profile-conversation-');
+};
+
+const isCursorEntry = (entryId: string): boolean => {
+    return entryId.startsWith('cursor-bottom-');
+};
+
+const determineItemType = (normalized: Record<string, unknown>): TweetItemType => {
+    const hasRetweet = Boolean(
+        (normalized as { legacy?: { retweeted_status_result?: { result?: unknown } } }).legacy?.retweeted_status_result
+            ?.result,
+    );
+    return hasRetweet ? 'Retweet' : 'Tweet';
+};
+
+const processTweetEntry = <T>(entry: TimelineEntry, buildRow: TimelineRowBuilder<T>): T | null => {
+    const normalized = normalizeTweetResult(entry.content?.itemContent?.tweet_results?.result);
+    if (!normalized) {
+        return null;
+    }
+
+    const type = determineItemType(normalized);
+    return buildRow(normalized, type);
+};
+
+const processConversationItems = <T>(entry: TimelineEntry, buildRow: TimelineRowBuilder<T>): T[] => {
+    const items: T[] = [];
+    const conversationItems = entry.content?.items ?? [];
+
+    for (const convoItem of conversationItems) {
+        const normalized = normalizeTweetResult(convoItem.item?.itemContent?.tweet_results?.result);
+        if (!normalized) {
+            continue;
+        }
+        const row = buildRow(normalized, 'Tweet');
+        if (row) {
+            items.push(row);
+        }
+    }
+
+    return items;
+};
+
+const extractCursorFromEntry = (entry: TimelineEntry): string | null => {
+    return entry.content?.cursorType === 'Bottom' ? (entry.content.value ?? null) : null;
+};
+
+const isAddOrReplaceInstruction = (instruction: TimelineInstruction): boolean => {
+    return instruction.type === 'TimelineAddEntries' || instruction.type === 'TimelineReplaceEntry';
+};
+
+const getEntriesFromInstruction = (instruction: TimelineInstruction): TimelineEntry[] => {
+    return instruction.entries ?? (instruction.entry ? [instruction.entry] : []);
+};
+
+const processTimelineEntry = <T>(entry: TimelineEntry, buildRow: TimelineRowBuilder<T>, items: T[]): string | null => {
+    const entryId = entry.entryId ?? '';
+
+    if (isPromotedTweet(entryId)) {
+        return null;
+    }
+
+    if (isTweetEntry(entryId)) {
+        const row = processTweetEntry(entry, buildRow);
+        if (row) {
+            items.push(row);
+        }
+        return null;
+    }
+
+    if (isConversationEntry(entryId)) {
+        const conversationItems = processConversationItems(entry, buildRow);
+        items.push(...conversationItems);
+        return null;
+    }
+
+    if (isCursorEntry(entryId)) {
+        return extractCursorFromEntry(entry);
+    }
+
+    return null;
+};
+
 /**
  * Extracts tweets and pagination cursor from a Twitter GraphQL timeline response.
  *
@@ -230,58 +322,16 @@ export const extractTimeline = <T>(data: unknown, buildRow: TimelineRowBuilder<T
     let nextCursor: string | null = null;
 
     for (const instruction of instructions) {
-        if (instruction.type !== 'TimelineAddEntries' && instruction.type !== 'TimelineReplaceEntry') {
+        if (!isAddOrReplaceInstruction(instruction)) {
             continue;
         }
 
-        const entries = instruction.entries ?? (instruction.entry ? [instruction.entry] : []);
+        const entries = getEntriesFromInstruction(instruction);
 
         for (const entry of entries) {
-            const entryId = entry.entryId ?? '';
-
-            // Skip promoted content
-            if (entryId.startsWith('promoted-tweet-')) {
-                continue;
-            }
-
-            // Handle regular tweet entries
-            if (entryId.startsWith('tweet-')) {
-                const normalized = normalizeTweetResult(entry.content?.itemContent?.tweet_results?.result);
-                if (!normalized) {
-                    continue;
-                }
-
-                const hasRetweet = Boolean(
-                    (normalized as { legacy?: { retweeted_status_result?: { result?: unknown } } }).legacy
-                        ?.retweeted_status_result?.result,
-                );
-                const type: TweetItemType = hasRetweet ? 'Retweet' : 'Tweet';
-                const row = buildRow(normalized, type);
-                if (row) {
-                    items.push(row);
-                }
-                continue;
-            }
-
-            // Handle conversation thread entries (profile-conversation-*)
-            if (entryId.startsWith('profile-conversation-')) {
-                const conversationItems = entry.content?.items ?? [];
-                for (const convoItem of conversationItems) {
-                    const normalized = normalizeTweetResult(convoItem.item?.itemContent?.tweet_results?.result);
-                    if (!normalized) {
-                        continue;
-                    }
-                    const row = buildRow(normalized, 'Tweet');
-                    if (row) {
-                        items.push(row);
-                    }
-                }
-                continue;
-            }
-
-            // Extract pagination cursor for next page
-            if (entryId.startsWith('cursor-bottom-') && entry.content?.cursorType === 'Bottom') {
-                nextCursor = entry.content.value ?? null;
+            const cursor = processTimelineEntry(entry, buildRow, items);
+            if (cursor) {
+                nextCursor = cursor;
             }
         }
     }

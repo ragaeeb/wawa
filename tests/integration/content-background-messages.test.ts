@@ -1,9 +1,9 @@
 import { describe, expect, it } from 'bun:test';
-import { createBackgroundService, createChromeSettingsStore } from '../../src/core/background/service';
+import { createBackgroundService, createChromeSettingsStore } from '@/core/background/service';
 
 describe('background message integration', () => {
     it('should bridge settings through chrome storage wrappers', async () => {
-        (globalThis as { __twexportChromeMock?: { clearStorage: () => void } }).__twexportChromeMock?.clearStorage();
+        (globalThis as { __wawaChromeMock?: { clearStorage: () => void } }).__wawaChromeMock?.clearStorage();
 
         const store = createChromeSettingsStore();
         await store.set({

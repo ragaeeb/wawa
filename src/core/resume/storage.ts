@@ -1,6 +1,6 @@
-import { RESUME_DB, STORAGE_KEYS } from '../../platform/chrome/storage-keys';
-import type { ResumePayload } from '../../types/domain';
-import { buildResumePayload, normalizeUsername } from './payload';
+import { buildResumePayload, normalizeUsername } from '@/core/resume/payload';
+import { RESUME_DB, STORAGE_KEYS } from '@/platform/chrome/storage-keys';
+import type { ResumePayload } from '@/types/domain';
 
 const DEFAULT_MAX_AGE_MS = 6 * 60 * 60 * 1000;
 const SERIALIZED_CHUNK_SIZE = 512 * 1024;

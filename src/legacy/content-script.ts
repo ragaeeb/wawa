@@ -1,15 +1,15 @@
 // @ts-nocheck
-// TwExport Minimal - Content Script
+// Wawa Minimal - Content Script
 // Injects a "Save Tweets" button into Twitter/X profile pages and handles export.
 
-import { buildConsolidatedMeta } from '../core/export/meta';
-import { createInitialLifecycle, reduceExportLifecycle, shouldPromptLooksDone } from '../core/rate-limit/state';
-import { mergeTweets } from '../core/resume/merge';
+import { buildConsolidatedMeta } from '@/core/export/meta';
+import { createInitialLifecycle, reduceExportLifecycle, shouldPromptLooksDone } from '@/core/rate-limit/state';
+import { mergeTweets } from '@/core/resume/merge';
 import {
     extractTweetsFromExportData as extractTweetsFromResumeInput,
     parseTweetDate as parseTweetDateCore,
-} from '../core/resume/payload';
-import { createChromeLocalFallbackStorage, createResumeStorage } from '../core/resume/storage';
+} from '@/core/resume/payload';
+import { createChromeLocalFallbackStorage, createResumeStorage } from '@/core/resume/storage';
 
 (() => {
     const BEARER_TOKEN =
@@ -337,7 +337,7 @@ import { createChromeLocalFallbackStorage, createResumeStorage } from '../core/r
             return;
         }
 
-        if (event.data?.type === 'TWEXPORT_RATE_LIMIT') {
+        if (event.data?.type === 'WAWA_RATE_LIMIT') {
             if (!isRateLimited && isExporting) {
                 isRateLimited = true;
                 rateLimitState.mode = 'paused';
@@ -355,7 +355,7 @@ import { createChromeLocalFallbackStorage, createResumeStorage } from '../core/r
             return;
         }
 
-        if (event.data?.type === 'TWEXPORT_AUTH_ERROR') {
+        if (event.data?.type === 'WAWA_AUTH_ERROR') {
             logError('Authentication error - session may have expired');
             isRateLimited = true;
             rateLimitState.mode = 'paused';
@@ -364,7 +364,7 @@ import { createChromeLocalFallbackStorage, createResumeStorage } from '../core/r
             return;
         }
 
-        if (event.data?.type === 'TWEXPORT_INTERCEPTED_RESPONSE') {
+        if (event.data?.type === 'WAWA_INTERCEPTED_RESPONSE') {
             interceptedResponses.push(event.data.payload);
             markTimelineActivity();
 
@@ -693,7 +693,7 @@ import { createChromeLocalFallbackStorage, createResumeStorage } from '../core/r
             logs = logs.slice(-500);
         }
 
-        const prefix = `[TwExport ${timestamp.split('T')[1].split('.')[0]}]`;
+        const prefix = `[Wawa ${timestamp.split('T')[1].split('.')[0]}]`;
         if (level === 'error') {
             console.error(prefix, message, data ?? '');
         } else if (level === 'warn') {
@@ -1761,7 +1761,7 @@ import { createChromeLocalFallbackStorage, createResumeStorage } from '../core/r
         }
 
         exportButton = document.createElement('div');
-        exportButton.id = 'twexport-button';
+        exportButton.id = 'wawa-button';
         exportButton.style.cssText = `
             position: fixed;
             bottom: 20px;
@@ -1794,7 +1794,7 @@ import { createChromeLocalFallbackStorage, createResumeStorage } from '../core/r
 
         // Export button
         const exportBtn = document.createElement('button');
-        exportBtn.id = 'twexport-export-btn';
+        exportBtn.id = 'wawa-export-btn';
         exportBtn.textContent = '📜 Export Tweets';
         exportBtn.style.cssText = btnStyle('linear-gradient(135deg, #1d9bf0 0%, #1a8cd8 100%)');
         exportBtn.onclick = () => {
@@ -1807,7 +1807,7 @@ import { createChromeLocalFallbackStorage, createResumeStorage } from '../core/r
 
         // Resume button
         const resumeBtn = document.createElement('button');
-        resumeBtn.id = 'twexport-resume-btn';
+        resumeBtn.id = 'wawa-resume-btn';
         resumeBtn.textContent = '📂 Resume';
         resumeBtn.style.cssText = btnStyle('linear-gradient(135deg, #9C27B0 0%, #7B1FA2 100%)');
         resumeBtn.onclick = () => {
@@ -1830,14 +1830,14 @@ import { createChromeLocalFallbackStorage, createResumeStorage } from '../core/r
         // Skip updates if we are showing a special interaction UI
         if (
             isPendingDone ||
-            document.getElementById('twexport-rl-controls') ||
-            document.getElementById('twexport-done-controls') ||
-            document.getElementById('twexport-route-controls')
+            document.getElementById('wawa-rl-controls') ||
+            document.getElementById('wawa-done-controls') ||
+            document.getElementById('wawa-route-controls')
         ) {
             return;
         }
 
-        const exportBtn = document.getElementById('twexport-export-btn');
+        const exportBtn = document.getElementById('wawa-export-btn');
         if (exportBtn) {
             exportBtn.textContent = text;
         } else {
@@ -1907,14 +1907,14 @@ import { createChromeLocalFallbackStorage, createResumeStorage } from '../core/r
 
         // Timer display
         const timerDisplay = document.createElement('div');
-        timerDisplay.id = 'twexport-cooldown-timer';
+        timerDisplay.id = 'wawa-cooldown-timer';
         timerDisplay.style.cssText = 'font-size: 24px; font-weight: bold; text-align: center; margin: 4px 0;';
         timerDisplay.textContent = formatTime(duration);
         exportButton.appendChild(timerDisplay);
 
         // Controls container
         const controls = document.createElement('div');
-        controls.id = 'twexport-rl-controls';
+        controls.id = 'wawa-rl-controls';
         controls.style.cssText = 'display: flex; gap: 8px;';
 
         // Skip Button
@@ -1970,7 +1970,7 @@ import { createChromeLocalFallbackStorage, createResumeStorage } from '../core/r
     }
 
     function updateCooldownTimer(ms) {
-        const el = document.getElementById('twexport-cooldown-timer');
+        const el = document.getElementById('wawa-cooldown-timer');
         if (el) {
             el.textContent = formatTime(ms);
         }
@@ -2039,7 +2039,7 @@ import { createChromeLocalFallbackStorage, createResumeStorage } from '../core/r
 
         // Button container
         const controls = document.createElement('div');
-        controls.id = 'twexport-done-controls';
+        controls.id = 'wawa-done-controls';
         controls.style.cssText = 'display: flex; flex-direction: column; gap: 6px;';
 
         // Button style helper
@@ -2163,7 +2163,7 @@ import { createChromeLocalFallbackStorage, createResumeStorage } from '../core/r
 
         // Button container
         const controls = document.createElement('div');
-        controls.id = 'twexport-route-controls';
+        controls.id = 'wawa-route-controls';
         controls.style.cssText = 'display: flex; flex-direction: column; gap: 6px;';
 
         // Button style helper
@@ -2387,7 +2387,7 @@ import { createChromeLocalFallbackStorage, createResumeStorage } from '../core/r
                 username = String(username).replace(/^@/, '');
 
                 // Build the resume URL
-                const resumeUrl = `https://x.com/search?q=from:${username} until:${untilDate}&src=typed_query&f=live&twexport_resume=1`;
+                const resumeUrl = `https://x.com/search?q=from:${username} until:${untilDate}&src=typed_query&f=live&wawa_resume=1`;
 
                 logInfo(`Resume URL: ${resumeUrl}`);
 
@@ -2411,7 +2411,7 @@ import { createChromeLocalFallbackStorage, createResumeStorage } from '../core/r
 
                     // Store auto-start flag
                     await chrome.storage.local.set({
-                        twexport_search_autostart: {
+                        wawa_search_autostart: {
                             username: username,
                             autoStart: true,
                             timestamp: Date.now(),
@@ -2453,7 +2453,7 @@ import { createChromeLocalFallbackStorage, createResumeStorage } from '../core/r
         }
 
         // Don't override if already showing controls
-        if (document.getElementById('twexport-rl-controls')) {
+        if (document.getElementById('wawa-rl-controls')) {
             return;
         }
 
@@ -2504,7 +2504,7 @@ import { createChromeLocalFallbackStorage, createResumeStorage } from '../core/r
 
         // Button container
         const controls = document.createElement('div');
-        controls.id = 'twexport-rl-controls';
+        controls.id = 'wawa-rl-controls';
         controls.style.cssText = 'display: flex; flex-direction: column; gap: 6px;';
 
         // Button style helper
@@ -2531,7 +2531,7 @@ import { createChromeLocalFallbackStorage, createResumeStorage } from '../core/r
             lifecycle = reduceExportLifecycle(lifecycle, { type: 'resume_manual', at: Date.now() });
             markTimelineActivity();
             // Remove the controls
-            const ctrl = document.getElementById('twexport-rl-controls');
+            const ctrl = document.getElementById('wawa-rl-controls');
             if (ctrl) {
                 ctrl.remove();
             }
@@ -2594,7 +2594,7 @@ import { createChromeLocalFallbackStorage, createResumeStorage } from '../core/r
 
         const username = getUsernameFromUrl();
         const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
-        const filename = `TwExport_${username}_PARTIAL_${timestamp}.json`;
+        const filename = `Wawa_${username}_PARTIAL_${timestamp}.json`;
 
         const payload = {
             meta: {
@@ -2666,7 +2666,7 @@ import { createChromeLocalFallbackStorage, createResumeStorage } from '../core/r
                 query += ` until:${until}`;
             }
 
-            const newUrl = `https://x.com/search?q=${encodeURIComponent(query)}&src=typed_query&f=live&twexport_resume=1`;
+            const newUrl = `https://x.com/search?q=${encodeURIComponent(query)}&src=typed_query&f=live&wawa_resume=1`;
 
             const resumeUsername = getUsernameFromUrl() || previousExportMeta?.username || null;
             const persisted = await persistResumeState(resumeUsername || 'unknown', collected, {
@@ -2687,7 +2687,7 @@ import { createChromeLocalFallbackStorage, createResumeStorage } from '../core/r
                 resumeMode: true,
                 previousTweetsCount: collected.length,
             };
-            await chrome.storage.local.set({ twexport_search_autostart: searchCtx });
+            await chrome.storage.local.set({ wawa_search_autostart: searchCtx });
 
             await navigator.clipboard.writeText(newUrl);
             logInfo('Resume Link copied with auto-start flag.');
@@ -2773,7 +2773,7 @@ import { createChromeLocalFallbackStorage, createResumeStorage } from '../core/r
                 timestamp: Date.now(),
             };
 
-            await chrome.storage.local.set({ twexport_search_autostart: searchCtx });
+            await chrome.storage.local.set({ wawa_search_autostart: searchCtx });
             updateButton('🔄 Redirecting...');
 
             const encodedQuery = encodeURIComponent(query);
@@ -2793,7 +2793,7 @@ import { createChromeLocalFallbackStorage, createResumeStorage } from '../core/r
             }
         }
 
-        const isResumeRequest = params.get('twexport_resume') === '1' || Boolean(autoStartCtx?.resumeMode);
+        const isResumeRequest = params.get('wawa_resume') === '1' || Boolean(autoStartCtx?.resumeMode);
         if (isResumeRequest) {
             const restoredResume = await restoreResumeStateFromStorage(searchUser);
             if (restoredResume) {
@@ -3239,7 +3239,7 @@ import { createChromeLocalFallbackStorage, createResumeStorage } from '../core/r
 
             const finishedAt = new Date().toISOString();
             const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
-            const filename = `TwExport_${username}_${effectiveIncludeReplies ? 'replies' : 'posts'}_${timestamp}.json`;
+            const filename = `Wawa_${username}_${effectiveIncludeReplies ? 'replies' : 'posts'}_${timestamp}.json`;
 
             const payload = {
                 meta: {
@@ -3308,18 +3308,18 @@ import { createChromeLocalFallbackStorage, createResumeStorage } from '../core/r
         }
     });
 
-    logInfo('TwExport Minimal content script loaded');
+    logInfo('Wawa Minimal content script loaded');
 
     // Check for auto-start flag (from redirect)
     if (chrome.storage && chrome.storage.local) {
-        chrome.storage.local.get(['twexport_search_autostart'], (result) => {
-            const ctx = result.twexport_search_autostart;
+        chrome.storage.local.get(['wawa_search_autostart'], (result) => {
+            const ctx = result.wawa_search_autostart;
             if (ctx && ctx.autoStart) {
                 // If timestamp is fresh (< 60s)
                 if (Date.now() - ctx.timestamp < 60000) {
                     logInfo('Auto-start flag detected! Starting export...');
                     pendingAutoStartContext = ctx;
-                    chrome.storage.local.remove('twexport_search_autostart');
+                    chrome.storage.local.remove('wawa_search_autostart');
 
                     // Wait for page to settle then trigger
                     setTimeout(() => {

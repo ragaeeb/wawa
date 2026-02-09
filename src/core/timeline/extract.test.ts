@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'bun:test';
-import { extractTimeline, getTimelineInstructions, normalizeTweetResult } from './extract';
+import { extractTimeline, getTimelineInstructions, normalizeTweetResult } from '@/core/timeline/extract';
 
 describe('timeline extraction', () => {
     it('should extract tweets from user timeline_v2 structure and cursor', () => {
@@ -222,5 +222,104 @@ describe('timeline extraction', () => {
             value: 1,
         });
         expect(normalized?.value).toBe(1);
+    });
+
+    it('should ignore tweet entries with invalid tweet payloads', () => {
+        const data = {
+            data: {
+                user: {
+                    result: {
+                        timeline_v2: {
+                            timeline: {
+                                instructions: [
+                                    {
+                                        type: 'TimelineAddEntries',
+                                        entries: [
+                                            {
+                                                entryId: 'tweet-invalid',
+                                                content: {
+                                                    itemContent: {
+                                                        tweet_results: {
+                                                            result: null,
+                                                        },
+                                                    },
+                                                },
+                                            },
+                                        ],
+                                    },
+                                ],
+                            },
+                        },
+                    },
+                },
+            },
+        };
+
+        const result = extractTimeline(data, () => ({ id: 'x' }));
+        expect(result.items).toEqual([]);
+        expect(result.nextCursor).toBeNull();
+    });
+
+    it('should return null cursor when cursor entry is bottom without value', () => {
+        const data = {
+            data: {
+                user: {
+                    result: {
+                        timeline_v2: {
+                            timeline: {
+                                instructions: [
+                                    {
+                                        type: 'TimelineAddEntries',
+                                        entries: [
+                                            {
+                                                entryId: 'cursor-bottom-9',
+                                                content: {
+                                                    cursorType: 'Bottom',
+                                                },
+                                            },
+                                        ],
+                                    },
+                                ],
+                            },
+                        },
+                    },
+                },
+            },
+        };
+
+        const result = extractTimeline(data, () => null);
+        expect(result.nextCursor).toBeNull();
+    });
+
+    it('should ignore non-bottom cursor entries', () => {
+        const data = {
+            data: {
+                user: {
+                    result: {
+                        timeline_v2: {
+                            timeline: {
+                                instructions: [
+                                    {
+                                        type: 'TimelineAddEntries',
+                                        entries: [
+                                            {
+                                                entryId: 'cursor-bottom-9',
+                                                content: {
+                                                    cursorType: 'Top',
+                                                    value: 'NOT_USED',
+                                                },
+                                            },
+                                        ],
+                                    },
+                                ],
+                            },
+                        },
+                    },
+                },
+            },
+        };
+
+        const result = extractTimeline(data, () => null);
+        expect(result.nextCursor).toBeNull();
     });
 });
