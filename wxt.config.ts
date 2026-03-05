@@ -13,13 +13,13 @@ export default defineConfig({
     manifestVersion: 3,
     srcDir: 'src',
     entrypointsDir: '../entrypoints',
-    outDir: '.output',
+    outDir: 'dist',
     modules: [],
     manifest: {
         name: 'Wawa',
         description: 'Minimal local export of X/Twitter posts without telemetry.',
         version: packageJson.version,
-        permissions: ['storage', 'unlimitedStorage'],
+        permissions: ['storage', 'unlimitedStorage', 'downloads', 'webRequest'],
         icons: {
             '16': 'icons/16.png',
             '32': 'icons/32.png',
@@ -27,7 +27,7 @@ export default defineConfig({
             '96': 'icons/96.png',
             '128': 'icons/128.png',
         },
-        host_permissions: ['*://*.x.com/*', '*://*.twitter.com/*'],
+        host_permissions: ['*://*.x.com/*', '*://*.twitter.com/*', '*://video.twimg.com/*'],
         action: {
             default_title: 'Wawa',
             default_icon: {
@@ -38,7 +38,7 @@ export default defineConfig({
         web_accessible_resources: [
             {
                 resources: ['/interceptor.js'],
-                matches: ['*://*.x.com/*', '*://*.twitter.com/*'],
+                matches: ['*://*.x.com/*'],
             },
         ],
     },

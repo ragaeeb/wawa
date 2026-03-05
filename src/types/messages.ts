@@ -1,37 +1,44 @@
 import type { ExportSummary, ExtensionSettings, LogEntry } from '@/types/domain';
 
-export type LogMessage = {
+type LogMessage = {
     type: 'log';
     entry: LogEntry;
 };
 
-export type GetLogsMessage = {
+type GetLogsMessage = {
     type: 'getLogs';
 };
 
-export type ClearLogsMessage = {
+type ClearLogsMessage = {
     type: 'clearLogs';
 };
 
-export type ExportCompleteMessage = {
+type ExportCompleteMessage = {
     type: 'exportComplete';
     username: string;
     count: number;
 };
 
-export type GetLastExportMessage = {
+type GetLastExportMessage = {
     type: 'getLastExport';
 };
 
-export type GetSettingsMessage = {
+type GetSettingsMessage = {
     type: 'getSettings';
 };
 
-export type SaveSettingsMessage = {
+type SaveSettingsMessage = {
     type: 'saveSettings';
     minimalData?: boolean;
     includeReplies?: boolean;
     maxCount?: number;
+};
+
+export type DownloadVideoMessage = {
+    type: 'downloadVideo';
+    tweetId?: string;
+    mediaId?: string;
+    fallbackUrl?: string;
 };
 
 export type RuntimeMessage =
@@ -41,7 +48,8 @@ export type RuntimeMessage =
     | ExportCompleteMessage
     | GetLastExportMessage
     | GetSettingsMessage
-    | SaveSettingsMessage;
+    | SaveSettingsMessage
+    | DownloadVideoMessage;
 
 export type RuntimeResponseMap = {
     log: { success: true };
@@ -51,6 +59,7 @@ export type RuntimeResponseMap = {
     getLastExport: { lastExport: ExportSummary | null };
     getSettings: ExtensionSettings;
     saveSettings: { success: true };
+    downloadVideo: { ok: true; downloadId: number; url: string } | { ok: false; error: string };
 };
 
 export type RuntimeResponseFor<T extends RuntimeMessage> = T extends { type: infer K }

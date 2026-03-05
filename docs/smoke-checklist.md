@@ -6,3 +6,5 @@
 4. Cooldown skip and continuation.
 5. Partial save and resume-link correctness.
 6. Popup log read/clear/settings roundtrip.
+7. Video download from a tweet detail page.
+8. Video download from an in-feed timeline video.

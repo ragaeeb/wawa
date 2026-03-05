@@ -170,4 +170,91 @@ describe('background message integration', () => {
         expect(state.logs).toEqual([]);
         expect(state.lastExport).toBeNull();
     });
+
+    it('should download the best tracked video for a tab', async () => {
+        const downloads = {
+            async download() {
+                return 77;
+            },
+        };
+
+        const service = createBackgroundService(
+            {
+                async get() {
+                    return { minimalData: true, includeReplies: false, maxCount: 0 };
+                },
+                async set() {},
+            },
+            downloads,
+        );
+
+        service.trackVideoUrl(55, 'https://video.twimg.com/ext_tw_video/123/pu/vid/320x180/foo.mp4?tag=1');
+        service.trackVideoUrl(55, 'https://video.twimg.com/ext_tw_video/123/pu/vid/1280x720/foo.mp4?tag=12');
+
+        const result = await service.handleMessage(
+            {
+                type: 'downloadVideo',
+                mediaId: '123',
+                tweetId: '2028737230844710988',
+            },
+            { tab: { id: 55 } as chrome.tabs.Tab },
+        );
+
+        expect(result).toEqual({
+            ok: true,
+            downloadId: 77,
+            url: 'https://video.twimg.com/ext_tw_video/123/pu/vid/1280x720/foo.mp4?tag=12',
+        });
+    });
+
+    it('should fall back to the content-provided url when no tracked request exists', async () => {
+        const service = createBackgroundService(
+            {
+                async get() {
+                    return { minimalData: true, includeReplies: false, maxCount: 0 };
+                },
+                async set() {},
+            },
+            {
+                async download() {
+                    return 12;
+                },
+            },
+        );
+
+        const result = await service.handleMessage(
+            {
+                type: 'downloadVideo',
+                fallbackUrl: 'https://video.twimg.com/ext_tw_video/999/pu/vid/640x360/bar.mp4',
+            },
+            { tab: { id: 3 } as chrome.tabs.Tab },
+        );
+
+        expect(result).toEqual({
+            ok: true,
+            downloadId: 12,
+            url: 'https://video.twimg.com/ext_tw_video/999/pu/vid/640x360/bar.mp4',
+        });
+    });
+
+    it('should report an error when video download cannot resolve a url', async () => {
+        const service = createBackgroundService({
+            async get() {
+                return { minimalData: true, includeReplies: false, maxCount: 0 };
+            },
+            async set() {},
+        });
+
+        const result = await service.handleMessage(
+            {
+                type: 'downloadVideo',
+            },
+            { tab: { id: 9 } as chrome.tabs.Tab },
+        );
+
+        expect(result).toEqual({
+            ok: false,
+            error: 'No downloadable MP4 found yet. Play the video for a second and try again.',
+        });
+    });
 });

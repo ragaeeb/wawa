@@ -2,13 +2,13 @@
 
 ## Short Description (132 characters max)
 
-Export your complete X/Twitter history locally—no servers, no tracking. Pause, resume, and own your data. 100% privacy-first.
+Export your X/Twitter history and download videos locally. No servers, no tracking, just private tools that run on your machine.
 
 ## Detailed Description (16,000 characters max)
 
 **Take Control of Your Twitter/X Data**
 
-Wawa is a privacy-focused Chrome extension that lets you export your complete X/Twitter history to your own computer—no cloud uploads, no third-party servers, no tracking. Your data stays yours.
+Wawa is a privacy-focused Chrome extension that lets you export your complete X/Twitter history and download X/Twitter videos directly to your own computer. No cloud uploads, no third-party servers, no tracking. Your data stays yours.
 
 🔒 **100% Local & Private**
 • All processing happens in your browser
@@ -21,6 +21,12 @@ Wawa is a privacy-focused Chrome extension that lets you export your complete X/
 • Exports threads and conversations
 • Includes all engagement metrics
 • Uses the same data Twitter's own web UI shows
+
+🎬 **Direct Video Downloads**
+• Adds a Download button on detected X/Twitter videos
+• Saves the MP4 directly from Twitter's own media host
+• Works on tweet detail pages and in-feed videos
+• No external downloader service involved
 
 ⏸️ **Pause & Resume for Large Accounts**
 • Export 10,000+ tweets without time pressure
@@ -41,6 +47,7 @@ Wawa is a privacy-focused Chrome extension that lets you export your complete X/
 3. **Click** the "📜 Export Tweets" button that appears
 4. **Wait** for collection (or pause and resume later)
 5. **Download** your data as a clean JSON file
+6. **Click** the `Download` button on videos when you want the MP4 file
 
 **What Gets Exported**
 
@@ -127,12 +134,12 @@ Wawa is not affiliated with X Corp or Twitter, Inc. This is an independent tool 
 
 ## Single Purpose Statement
 
-**Single Purpose**: Enable users to export their complete X/Twitter tweet history as a local JSON file without relying on external servers, ensuring data privacy and portability.
+**Single Purpose**: Enable users to save their own X/Twitter content locally from the X/Twitter web app, including tweet-history exports and direct video downloads, without relying on external servers.
 
-**Narrow Description**: This extension serves one specific function—intercepting X/Twitter's public GraphQL API responses as users browse their profiles, collecting this data locally in the browser, and providing a downloadable export file. It does not:
+**Narrow Description**: This extension serves one specific function: local-first capture and download of a user's own visible X/Twitter content from the X/Twitter web app. It intercepts X/Twitter responses already loaded in the page, stores export data locally in the browser, observes Twitter-hosted video media requests so users can save those videos, and provides local downloads. It does not:
 - Send data to remote servers
 - Track user behavior
-- Modify X/Twitter's interface beyond adding an export button
+- Modify X/Twitter's interface beyond adding export and video-download buttons
 - Interact with other websites or services
 
 ---
@@ -239,6 +246,50 @@ Wawa is not affiliated with X Corp or Twitter, Inc. This is an independent tool 
 - Does not alter API requests (read-only interception)
 - Does not send intercepted data to external servers
 - All processing happens locally in the browser
+
+---
+
+### 4. `downloads`
+
+**Purpose**: Save export files and X/Twitter video files directly to the user's device.
+
+**Justification**:
+- **Export Files**: Wawa already needs to save collected JSON exports to disk.
+- **Video Files**: The new downloader saves MP4 files from X/Twitter videos when the user explicitly clicks `Download`.
+- **User Control**: Chrome's download flow lets the user choose where files go.
+
+**Without This Permission**:
+- Export completion could not trigger a file save through the extension APIs
+- Video download buttons would not be able to start actual downloads
+
+---
+
+### 5. `webRequest`
+
+**Purpose**: Observe X/Twitter video media requests so the extension can resolve the best downloadable MP4 URL for the current tab.
+
+**Justification**:
+- X/Twitter videos are served from `video.twimg.com`
+- The content script can detect a `<video>` element, but the best downloadable MP4 URL is often only visible when the browser requests it
+- `webRequest` lets the background service map those media requests to the active tab and selected tweet video
+
+**Without This Permission**:
+- The extension would see the page video element but often would not know which Twitter-hosted MP4 URL to download
+- The download feature would be unreliable on many tweet pages
+
+---
+
+### 6. Host Permission: `*://video.twimg.com/*`
+
+**Purpose**: Allow the extension to observe and download X/Twitter-hosted video assets.
+
+**Justification**:
+- X/Twitter serves video files from `video.twimg.com`, not from `x.com`
+- The background service watches requests to this host to capture the active MP4 variant
+- The download API then saves that same Twitter-hosted URL locally for the user
+
+**Without This Permission**:
+- Video download would not function reliably because the extension could not observe or resolve the Twitter video asset URL
 
 ---
 
