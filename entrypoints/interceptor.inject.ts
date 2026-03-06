@@ -38,7 +38,9 @@ const isTargetGraphQLEndpoint = (url: string | undefined): boolean => {
         url.includes('UserTweets') ||
         url.includes('UserTweetsAndReplies') ||
         url.includes('UserMedia') ||
-        url.includes('SearchTimeline')
+        url.includes('SearchTimeline') ||
+        url.includes('GrokHistory') ||
+        url.includes('GrokConversationItemsByRestId')
     );
 };
 

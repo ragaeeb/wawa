@@ -15,6 +15,7 @@
 
 - 🔒 **100% Local**: All data stays on your device, never sent to external servers
 - 📊 **Complete Exports**: Captures replies and threads that official APIs miss
+- 💬 **X-Grok Chat Export**: Export the current `x.com/i/grok` conversation or bulk-export Grok chats locally
 - 🎬 **One-Click Video Downloads**: Adds a `Download` button beside detected X/Twitter videos
 - ⏸️ **Pause & Resume**: Export large accounts (25k+ tweets) with automatic resume capability
 - 🚦 **Rate Limit Aware**: Intelligent handling of Twitter's rate limits with auto-cooldowns
@@ -58,6 +59,12 @@ bun run build
 2. **Click** the "📜 Export Tweets" button injected into the page
 3. **Wait** for the export to complete (or pause and resume later)
 4. **Download** your data as a JSON file
+
+To export an X-Grok chat:
+
+1. **Navigate** to a conversation on `https://x.com/i/grok?conversation=...`
+2. **Click** the `Export Chat` button injected into the page to download the current conversation JSON
+3. **Open** the extension popup and use `Export Grok Chats` to bulk-export multiple Grok conversations
 
 To download a video:
 

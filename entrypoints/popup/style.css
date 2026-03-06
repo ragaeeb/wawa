@@ -69,6 +69,14 @@ h1 {
     line-height: 1.5;
 }
 
+code {
+    font-family: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace;
+    font-size: 11px;
+    background: #e2e8f0;
+    padding: 1px 4px;
+    border-radius: 4px;
+}
+
 h2 {
     font-size: 14px;
     margin: 20px 0 8px;
@@ -76,6 +84,42 @@ h2 {
     border-bottom: 1px solid var(--border-color);
     padding-bottom: 4px;
     font-weight: 600;
+}
+
+.panel {
+    border: 1px solid var(--border-color);
+    border-radius: 10px;
+    background: #fff;
+    padding: 12px;
+}
+
+.panel h2 {
+    margin-top: 0;
+}
+
+.field-label {
+    display: block;
+    font-size: 12px;
+    font-weight: 500;
+    color: var(--sub-text);
+    margin-bottom: 8px;
+}
+
+.inline-controls {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+}
+
+.text-input {
+    width: 90px;
+    border: 1px solid var(--border-color);
+    border-radius: 6px;
+    padding: 7px 8px;
+    font: inherit;
+    font-size: 12px;
+    color: var(--text-color);
+    background: #fff;
 }
 
 .log-controls {
@@ -140,6 +184,11 @@ button.secondary:hover {
     display: block;
     background: #ecfdf5;
     color: #059669;
+}
+
+.status[data-state="error"] {
+    background: #fef2f2;
+    color: #b91c1c;
 }
 
 .footer {

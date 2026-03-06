@@ -1,4 +1,6 @@
 import { applyRateLimitInfo, type RateLimitState } from '@/content/rate-limit-controller';
+import type { InterceptedResponsePayload } from '@/content/runtime-state';
+import type { ExportLifecycleAction, ExportLifecycleSnapshot } from '@/core/rate-limit/state';
 
 type AnyRecord = Record<string, any>;
 
@@ -7,11 +9,11 @@ type CreateRateLimitHandlersInput = {
     getIsExporting: () => boolean;
     getIsRateLimited: () => boolean;
     setIsRateLimited: (value: boolean) => void;
-    getLifecycle: () => unknown;
-    setLifecycle: (value: unknown) => void;
-    reduceLifecycle: (state: unknown, action: { type: string; at?: number }) => unknown;
+    getLifecycle: () => ExportLifecycleSnapshot;
+    setLifecycle: (value: ExportLifecycleSnapshot) => void;
+    reduceLifecycle: (state: ExportLifecycleSnapshot, action: ExportLifecycleAction) => ExportLifecycleSnapshot;
     markTimelineActivity: () => void;
-    addInterceptedResponse: (payload: AnyRecord) => void;
+    addInterceptedResponse: (payload: InterceptedResponsePayload) => void;
     getInterceptedResponseCount: () => number;
     onRateLimitUiRequired: () => void;
     logInfo: (message: string, data?: unknown) => void;
@@ -24,7 +26,7 @@ export type RateLimitHandlers = {
     applyRateLimitUpdate: (rateLimitInfo: AnyRecord | null | undefined) => void;
     handleRateLimitMessage: (payload: AnyRecord | null | undefined) => void;
     handleAuthErrorMessage: () => void;
-    handleInterceptedResponseMessage: (payload: AnyRecord) => void;
+    handleInterceptedResponseMessage: (payload: InterceptedResponsePayload) => void;
 };
 
 export const createRateLimitHandlers = (input: CreateRateLimitHandlersInput) => {
@@ -76,7 +78,7 @@ export const createRateLimitHandlers = (input: CreateRateLimitHandlersInput) => 
         input.onRateLimitUiRequired();
     };
 
-    const handleInterceptedResponseMessage = (payload: AnyRecord) => {
+    const handleInterceptedResponseMessage = (payload: InterceptedResponsePayload) => {
         input.addInterceptedResponse(payload);
         input.markTimelineActivity();
 

@@ -1,3 +1,4 @@
+import type { RuntimeWindow } from '@/content/runtime-state';
 import {
     createMainButtonContainer,
     hasBlockingOverlayControls,
@@ -14,8 +15,6 @@ type CreateRuntimeButtonControllerInput = {
     isPendingDone: () => boolean;
     logInfo: (message: string, data?: unknown) => void;
 };
-
-type RuntimeWindow = Window & typeof globalThis & { wawaSkipCooldown?: boolean };
 
 export type RuntimeButtonController = {
     getContainer: () => HTMLDivElement | null;
