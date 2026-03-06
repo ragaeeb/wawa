@@ -74,32 +74,37 @@ const pickRicherTweet = (existing: TweetItem, candidate: TweetItem) => {
  *
  * Strategy:
  * 1. If tweet has an ID, use it (most reliable)
- * 2. If no ID, create composite key from source + index + timestamp + text
+ * 2. If no ID, create a stable content key from timestamp/text/author hints
  *
  * The composite key handles edge cases where tweets lack IDs
  * (rare, but possible with malformed API responses).
  *
  * @param tweet - Tweet to generate key for
- * @param source - Origin of tweet ("new" or "previous" collection)
- * @param index - Position in source array (for uniqueness)
  * @returns Unique string key for this tweet
  *
  * @example
  * ```typescript
  * const tweet = { id: "1234567890", text: "Hello" };
- * const key = tweetKey(tweet, "new", 0);
+ * const key = tweetKey(tweet);
  * // Returns: "id:1234567890"
  *
  * const noIdTweet = { text: "No ID tweet", created_at: "2020-01-01 00:00:00" };
- * const key2 = tweetKey(noIdTweet, "previous", 5);
- * // Returns: "previous:5:2020-01-01 00:00:00:No ID tweet"
+ * const key2 = tweetKey(noIdTweet);
+ * // Returns: "fallback:2020-01-01 00:00:00:No ID tweet::"
  * ```
  */
-const tweetKey = (tweet: TweetItem, source: 'new' | 'previous', index: number) => {
+const buildFallbackTweetKey = (tweet: TweetItem) => {
+    const authorId = typeof tweet.author?.id === 'string' ? tweet.author.id : '';
+    const authorUsername = typeof tweet.author?.username === 'string' ? tweet.author.username.toLowerCase() : '';
+
+    return `fallback:${tweet.created_at ?? ''}:${tweet.text ?? ''}:${authorId}:${authorUsername}`;
+};
+
+const tweetKey = (tweet: TweetItem) => {
     if (tweet.id) {
         return `id:${tweet.id}`;
     }
-    return `${source}:${index}:${tweet.created_at ?? ''}:${tweet.text ?? ''}`;
+    return buildFallbackTweetKey(tweet);
 };
 
 /**
@@ -195,13 +200,13 @@ export const mergeTweets = (newTweets: TweetItem[], previousTweets: TweetItem[])
     let duplicates = 0;
 
     // Add new tweets first (prioritize fresh data)
-    newTweets.forEach((tweet, index) => {
-        merged.set(tweetKey(tweet, 'new', index), tweet);
+    newTweets.forEach((tweet) => {
+        merged.set(tweetKey(tweet), tweet);
     });
 
     // Merge in previous tweets, detecting duplicates
-    previousTweets.forEach((tweet, index) => {
-        const key = tweetKey(tweet, 'previous', index);
+    previousTweets.forEach((tweet) => {
+        const key = tweetKey(tweet);
         const existing = merged.get(key);
 
         if (!existing) {

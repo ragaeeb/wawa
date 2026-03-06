@@ -13,9 +13,18 @@
         <p class="tagline">Privacy-first Twitter/X Export</p>
       </header>
 
-      <p class="sub">Navigate to any X/Twitter profile and click the "📜 Export Tweets" button.</p>
+      <p class="sub">Use the page button on <code>x.com/i/grok</code> to export the current chat, or bulk-export Grok chats from here.</p>
 
       <div class="status" id="status"></div>
+
+      <section class="panel">
+        <h2>Export Grok Chats</h2>
+        <label class="field-label" for="grokBulkLimit">Max chats (0 = all)</label>
+        <div class="inline-controls">
+          <input id="grokBulkLimit" class="text-input" type="number" min="0" step="1" value="100" />
+          <button id="exportGrokChats" type="button">Export Grok Chats</button>
+        </div>
+      </section>
 
       <h2>Debug Logs</h2>
       <div class="log-controls">

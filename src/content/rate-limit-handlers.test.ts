@@ -1,11 +1,12 @@
 import { describe, expect, it, mock } from 'bun:test';
 import { createRateLimitState } from '@/content/rate-limit-controller';
 import { createRateLimitHandlers } from '@/content/rate-limit-handlers';
+import { createInitialLifecycle, reduceExportLifecycle } from '@/core/rate-limit/state';
 
 describe('createRateLimitHandlers', () => {
     const createMockInput = () => {
         const rateLimitState = createRateLimitState();
-        const lifecycle = { phase: 'idle' };
+        const lifecycle = createInitialLifecycle();
 
         return {
             rateLimitState,
@@ -14,7 +15,7 @@ describe('createRateLimitHandlers', () => {
             setIsRateLimited: mock(() => {}),
             getLifecycle: mock(() => lifecycle),
             setLifecycle: mock(() => {}),
-            reduceLifecycle: mock((state, action) => ({ ...state, action })),
+            reduceLifecycle: mock((state, action) => reduceExportLifecycle(state, action)),
             markTimelineActivity: mock(() => {}),
             addInterceptedResponse: mock(() => {}),
             getInterceptedResponseCount: mock(() => 10),

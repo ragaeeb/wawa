@@ -1,3 +1,5 @@
+import type { TweetItem } from '@/types/domain';
+
 type AnyRecord = Record<string, any>;
 
 type RuntimeLoggers = {
@@ -428,22 +430,32 @@ const appendNewItems = (items: AnyRecord[], targetUserId: string, seenIds: Set<s
     }
 };
 
+export const appendTweetsFromResponseData = (
+    responseData: unknown,
+    targetUserId: string,
+    seenIds: Set<string>,
+    destination: TweetItem[],
+    loggers: RuntimeLoggers,
+) => {
+    try {
+        const { items } = extractTimeline(responseData, loggers);
+        appendNewItems(items, targetUserId, seenIds, destination as AnyRecord[]);
+    } catch (error) {
+        const message = error instanceof Error ? error.message : String(error);
+        loggers.logDebug('Error extracting from intercepted response', { error: message });
+    }
+};
+
 export const extractTweetsFromResponses = (
     interceptedResponses: AnyRecord[],
     targetUserId: string,
     loggers: RuntimeLoggers,
 ) => {
-    const allTweets: AnyRecord[] = [];
+    const allTweets: TweetItem[] = [];
     const seenIds = new Set<string>();
 
     for (const response of interceptedResponses) {
-        try {
-            const { items } = extractTimeline(response.data, loggers);
-            appendNewItems(items, targetUserId, seenIds, allTweets);
-        } catch (error) {
-            const message = error instanceof Error ? error.message : String(error);
-            loggers.logDebug('Error extracting from intercepted response', { error: message });
-        }
+        appendTweetsFromResponseData(response.data, targetUserId, seenIds, allTweets, loggers);
     }
 
     loggers.logInfo(`Extracted ${allTweets.length} unique tweets from intercepted responses`);

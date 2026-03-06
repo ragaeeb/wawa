@@ -6,20 +6,22 @@
 [![Release](https://github.com/ragaeeb/wawa/actions/workflows/release.yml/badge.svg)](https://github.com/ragaeeb/wawa/actions/workflows/release.yml)
 [![License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.9-blue.svg)](https://www.typescriptlang.org/)
-[![Bun](https://img.shields.io/badge/Bun-1.3.9-black.svg)](https://bun.sh)
+[![Bun](https://img.shields.io/badge/Bun-1.3.10-black.svg)](https://bun.sh)
 [![Chrome Web Store](https://img.shields.io/badge/Chrome-Extension-green.svg)](https://chrome.google.com/webstore)
 
-> **Wawa** is a privacy-focused Chrome extension for complete local exports of your X/Twitter data—no telemetry, no server uploads, just your data on your machine.
+> **Wawa** is a privacy-focused Chrome extension for complete local exports of your X/Twitter data and direct video downloads on X/Twitter pages, with no telemetry or server uploads.
 
 ## ✨ Features
 
 - 🔒 **100% Local**: All data stays on your device, never sent to external servers
 - 📊 **Complete Exports**: Captures replies and threads that official APIs miss
+- 💬 **X-Grok Chat Export**: Export the current `x.com/i/grok` conversation or bulk-export Grok chats locally
+- 🎬 **One-Click Video Downloads**: Adds a `Download` button beside detected X/Twitter videos
 - ⏸️ **Pause & Resume**: Export large accounts (25k+ tweets) with automatic resume capability
 - 🚦 **Rate Limit Aware**: Intelligent handling of Twitter's rate limits with auto-cooldowns
 - 💾 **Smart Storage**: Chunked IndexedDB storage with automatic fallback for large datasets
-- 🎯 **Minimal Permissions**: Only requests necessary permissions for core functionality
-- 🧪 **80%+ Test Coverage**: Core business logic thoroughly tested
+- 🎯 **Focused Permissions**: Only requests permissions required for local export and local video download flows
+- 🧪 **99% Core Coverage Gate**: `src/core/**` stays at >=99% line and function coverage
 
 ## 🚀 Quick Start
 
@@ -32,7 +34,7 @@
 git clone https://github.com/ragaeeb/wawa.git
 cd wawa
 
-# Install dependencies (requires Bun 1.3.9+)
+# Install dependencies (requires Bun 1.3.10+)
 bun install
 
 # Build the extension
@@ -42,7 +44,7 @@ bun run build
 # 1. Navigate to chrome://extensions
 # 2. Enable "Developer mode" (top-right toggle)
 # 3. Click "Load unpacked"
-# 4. Select the .output/chrome-mv3 directory
+# 4. Select the dist/chrome-mv3 directory
 ```
 
 #### From Release
@@ -57,6 +59,19 @@ bun run build
 2. **Click** the "📜 Export Tweets" button injected into the page
 3. **Wait** for the export to complete (or pause and resume later)
 4. **Download** your data as a JSON file
+
+To export an X-Grok chat:
+
+1. **Navigate** to a conversation on `https://x.com/i/grok?conversation=...`
+2. **Click** the `Export Chat` button injected into the page to download the current conversation JSON
+3. **Open** the extension popup and use `Export Grok Chats` to bulk-export multiple Grok conversations
+
+To download a video:
+
+1. **Open** any X/Twitter post or timeline item containing a playable video
+2. **Play** the video briefly if needed so the browser resolves the media URL
+3. **Click** the `Download` button overlaid on the video
+4. **Choose** where to save the MP4 file
 
 The extension popup shows real-time logs and export status.
 
@@ -140,10 +155,11 @@ By intercepting `SearchTimeline`, we capture the same data Twitter's own web UI 
 
 **Responsibilities**:
 - Injects "Export Tweets" UI button
+- Injects `Download` buttons on detected X/Twitter videos
 - Listens for intercepted GraphQL responses
 - Manages export state machine (idle → running → paused → completed)
 - Handles resume logic from IndexedDB
-- Triggers file downloads
+- Triggers export and video file downloads
 
 **State Machine**:
 ```typescript
@@ -170,6 +186,7 @@ idle → running → cooldown → running
 - Routes messages between popup, content script, and storage
 - Maintains log buffer (last 500 entries)
 - Tracks export summaries
+- Tracks per-tab video URLs observed from `video.twimg.com`
 - Manages extension settings
 
 **Message Flow**:
@@ -547,8 +564,8 @@ it('should transition from cooldown to running on exit', () => {
 
 ### Prerequisites
 
-- **Bun** 1.3.9 or later
-- **Node.js** 24 or later (for compatibility)
+- **Bun** 1.3.10 or later
+- **Node.js** 25 or later (release tooling compatibility)
 - **Chrome/Chromium** latest stable
 
 ### Setup
@@ -576,8 +593,8 @@ bun run dev
 | `bun run lint` | Lint code with Biome |
 | `bun run format` | Auto-format code |
 | `bun test` | Run test suite |
-| `bun run test:coverage` | Run tests with coverage check |
-| `bun run check` | Full validation (typecheck + lint + test) |
+| `bun test --coverage --coverage-reporter=lcov` | Run tests with coverage output |
+| `bun run check` | Full validation (typecheck + lint + tests with coverage gate) |
 
 ### Testing
 
@@ -592,11 +609,11 @@ bun test src/core/resume/merge.test.ts
 bun test --watch
 
 # Coverage report
-bun run test:coverage
+bun test --coverage --coverage-reporter=lcov
 ```
 
 **Coverage Requirements**:
-- Core modules (`src/core/**`): ≥80% line and function coverage
+- Core modules (`src/core/**`): ≥99% line and function coverage
 - Enforced in CI/CD pipeline
 - Script: `scripts/check-core-coverage.ts`
 

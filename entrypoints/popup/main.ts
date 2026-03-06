@@ -1,5 +1,12 @@
+import {
+    DEFAULT_X_GROK_BULK_EXPORT_LIMIT,
+    normalizeXGrokBulkExportLimit,
+    WAWA_X_GROK_BULK_EXPORT_MESSAGE,
+    X_GROK_BULK_EXPORT_LIMIT_STORAGE_KEY,
+} from '@/content/x-grok-contracts';
 import { sendRuntimeMessage } from '@/platform/chrome/runtime';
 import type { LogEntry } from '@/types/domain';
+import { persistGrokBulkLimitChange, runGrokBulkExport } from './grok-bulk-export';
 import './style.css';
 
 const elements = {
@@ -7,6 +14,37 @@ const elements = {
     log: document.getElementById('log') as HTMLPreElement,
     refreshLogs: document.getElementById('refreshLogs') as HTMLButtonElement,
     clearLogs: document.getElementById('clearLogs') as HTMLButtonElement,
+    grokBulkLimit: document.getElementById('grokBulkLimit') as HTMLInputElement,
+    exportGrokChats: document.getElementById('exportGrokChats') as HTMLButtonElement,
+};
+
+const getActiveTabId = async () => {
+    const [activeTab] = await chrome.tabs.query({ active: true, currentWindow: true });
+    return typeof activeTab?.id === 'number' ? activeTab.id : null;
+};
+
+const setStatus = (message: string, isError = false) => {
+    elements.status.textContent = message;
+    elements.status.dataset.state = isError ? 'error' : 'success';
+};
+
+const loadBulkExportLimit = async () => {
+    try {
+        const result = await chrome.storage.local.get({
+            [X_GROK_BULK_EXPORT_LIMIT_STORAGE_KEY]: DEFAULT_X_GROK_BULK_EXPORT_LIMIT,
+        });
+        elements.grokBulkLimit.value = String(
+            normalizeXGrokBulkExportLimit(result[X_GROK_BULK_EXPORT_LIMIT_STORAGE_KEY]),
+        );
+    } catch {
+        elements.grokBulkLimit.value = String(DEFAULT_X_GROK_BULK_EXPORT_LIMIT);
+    }
+};
+
+const saveBulkExportLimit = async (value: number) => {
+    await chrome.storage.local.set({
+        [X_GROK_BULK_EXPORT_LIMIT_STORAGE_KEY]: normalizeXGrokBulkExportLimit(value),
+    });
 };
 
 const formatLogEntry = (entry: LogEntry): string => {
@@ -47,6 +85,28 @@ const clearLogs = async (): Promise<void> => {
     }
 };
 
+const exportGrokChats = async (): Promise<void> => {
+    await runGrokBulkExport({
+        rawLimit: elements.grokBulkLimit.value,
+        normalizeLimit: normalizeXGrokBulkExportLimit,
+        setLimitValue: (value) => {
+            elements.grokBulkLimit.value = value;
+        },
+        saveLimit: saveBulkExportLimit,
+        getActiveTabId,
+        sendTabMessage: (tabId, limit) => {
+            return chrome.tabs.sendMessage(tabId, {
+                type: WAWA_X_GROK_BULK_EXPORT_MESSAGE,
+                limit,
+            });
+        },
+        setStatus,
+        setBusy: (busy) => {
+            elements.exportGrokChats.disabled = busy;
+        },
+    });
+};
+
 elements.refreshLogs.addEventListener('click', () => {
     void loadLogs();
 });
@@ -55,4 +115,21 @@ elements.clearLogs.addEventListener('click', () => {
     void clearLogs();
 });
 
+elements.grokBulkLimit.addEventListener('change', () => {
+    void persistGrokBulkLimitChange({
+        rawLimit: elements.grokBulkLimit.value,
+        normalizeLimit: normalizeXGrokBulkExportLimit,
+        setLimitValue: (value) => {
+            elements.grokBulkLimit.value = value;
+        },
+        saveLimit: saveBulkExportLimit,
+        setStatus,
+    });
+});
+
+elements.exportGrokChats.addEventListener('click', () => {
+    void exportGrokChats();
+});
+
+void loadBulkExportLimit();
 void loadLogs();

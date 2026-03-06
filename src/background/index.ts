@@ -12,9 +12,9 @@ export const bootstrapBackground = () => {
 
     const service = createBackgroundService(createChromeSettingsStore());
 
-    chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
+    chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
         service
-            .handleMessage(message as RuntimeMessage)
+            .handleMessage(message as RuntimeMessage, sender)
             .then((response) => sendResponse(response))
             .catch((error: unknown) => {
                 const messageText = error instanceof Error ? error.message : String(error);
@@ -28,5 +28,19 @@ export const bootstrapBackground = () => {
         chrome.storage.local.get(DEFAULT_SETTINGS as unknown as Record<string, unknown>, (existing) => {
             chrome.storage.local.set(existing as Record<string, unknown>);
         });
+    });
+
+    chrome.webRequest?.onBeforeRequest?.addListener?.(
+        (details) => {
+            if (details.tabId !== undefined && details.url) {
+                service.trackVideoUrl(details.tabId, details.url);
+            }
+            return undefined;
+        },
+        { urls: ['*://video.twimg.com/*'] },
+    );
+
+    chrome.tabs?.onRemoved?.addListener?.((tabId) => {
+        service.clearTab(tabId);
     });
 };

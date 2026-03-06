@@ -203,6 +203,15 @@ export type ExportMeta = {
     /** Merge statistics (only for resumed exports) */
     merge_info?: MergeInfo;
 
+    /** Legacy pre-consolidation field preserved for backward-compatible resume imports. */
+    started_at?: string;
+
+    /** Legacy pre-consolidation field preserved for backward-compatible resume imports. */
+    finished_at?: string;
+
+    /** Legacy reported-count field preserved for backward-compatible resume imports. */
+    total_tweets_reported?: number | null;
+
     /** Additional metadata fields not explicitly typed */
     [key: string]: unknown;
 };

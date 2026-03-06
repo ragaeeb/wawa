@@ -4,6 +4,16 @@ type ScrollLoopState = {
     scrollCount: number;
 };
 
+const DOM_CLEANUP_INTERVAL = 5;
+const DOM_CLEANUP_THRESHOLD = 50;
+const DOM_CLEANUP_KEEP_COUNT = 20;
+const HEIGHT_STABILITY_LOG_THRESHOLD = 3;
+const HEIGHT_STABILITY_THRESHOLD = 8;
+const TWITTER_ERROR_RETRY_DELAY_MS = 5000;
+const LOOKS_DONE_IDLE_THRESHOLD_MS = 30000;
+const MIN_SCROLL_DELAY_MS = 3000;
+const WAIT_STATE_POLL_MS = 1000;
+
 type LooksDoneInput = {
     now: number;
     idleThresholdMs: number;
@@ -49,16 +59,18 @@ const createScrollLoopState = () => ({
 });
 
 const cleanupTweetDom = (scrollCount: number, logDebug: ScrollRunnerDeps['logDebug']) => {
+    if (scrollCount % DOM_CLEANUP_INTERVAL !== 0) {
+        return;
+    }
+
     try {
         const tweets = document.querySelectorAll('article[data-testid="tweet"]');
-        if (tweets.length <= 50) {
+        if (tweets.length <= DOM_CLEANUP_THRESHOLD) {
             return;
         }
 
-        const toRemove = tweets.length - 20;
-        if (scrollCount % 5 === 0) {
-            logDebug(`Cleaning up DOM: removing ${toRemove} tweets`);
-        }
+        const toRemove = tweets.length - DOM_CLEANUP_KEEP_COUNT;
+        logDebug(`Cleaning up DOM: removing ${toRemove} tweets`);
 
         for (let index = 0; index < toRemove; index += 1) {
             tweets[index]?.remove();
@@ -95,7 +107,7 @@ const recoverFromTwitterError = async (deps: ScrollRunnerDeps) => {
         deps.logInfo('Clicked Retry button');
     }
 
-    await deps.sleep(5000);
+    await deps.sleep(TWITTER_ERROR_RETRY_DELAY_MS);
     deps.markTimelineActivity();
     return true;
 };
@@ -107,8 +119,8 @@ const updateHeightStability = (
 ) => {
     if (currentHeight === state.lastScrollHeight) {
         state.noChangeCount += 1;
-        if (state.noChangeCount > 3) {
-            logDebug(`No height change (attempt ${state.noChangeCount}/8)`);
+        if (state.noChangeCount > HEIGHT_STABILITY_LOG_THRESHOLD) {
+            logDebug(`No height change (attempt ${state.noChangeCount}/${HEIGHT_STABILITY_THRESHOLD})`);
         }
         return;
     }
@@ -122,7 +134,7 @@ const hasRouteChanged = (startingPathname: string) => {
 };
 
 const shouldBreakLoop = (state: ScrollLoopState, maxScrolls: number) => {
-    return state.scrollCount >= maxScrolls || state.noChangeCount >= 8;
+    return state.scrollCount >= maxScrolls || state.noChangeCount >= HEIGHT_STABILITY_THRESHOLD;
 };
 
 const runCooldownCycle = async (deps: ScrollRunnerDeps) => {
@@ -135,7 +147,7 @@ const runCooldownCycle = async (deps: ScrollRunnerDeps) => {
 
     while (Date.now() < endTime && deps.isExporting() && !deps.shouldSkipCooldown()) {
         deps.updateCooldownTimer(Math.max(0, endTime - Date.now()));
-        await deps.sleep(1000);
+        await deps.sleep(WAIT_STATE_POLL_MS);
     }
 
     if (deps.shouldSkipCooldown()) {
@@ -144,9 +156,13 @@ const runCooldownCycle = async (deps: ScrollRunnerDeps) => {
     }
 
     deps.removeCooldownUI();
+    if (!deps.isExporting()) {
+        return;
+    }
+
     deps.onCooldownComplete();
     deps.updateButton('🟢 Resuming...');
-    await deps.sleep(1000);
+    await deps.sleep(WAIT_STATE_POLL_MS);
 };
 
 const handleWaitStates = async (deps: ScrollRunnerDeps, state: ScrollLoopState) => {
@@ -154,8 +170,12 @@ const handleWaitStates = async (deps: ScrollRunnerDeps, state: ScrollLoopState) 
         return 'break';
     }
 
+    if (!deps.isExporting()) {
+        return 'break';
+    }
+
     if (deps.isPendingDone()) {
-        await deps.sleep(1000);
+        await deps.sleep(WAIT_STATE_POLL_MS);
         return 'continue';
     }
 
@@ -163,12 +183,12 @@ const handleWaitStates = async (deps: ScrollRunnerDeps, state: ScrollLoopState) 
         deps.logWarn(`Route changed! Was: ${deps.startingPathname}, Now: ${window.location.pathname}`);
         deps.logWarn('Navigation detected - possibly clicked on a tweet. Pausing export.');
         deps.onRouteChanged(window.location.pathname, deps.getResponsesCaptured());
-        await deps.sleep(1000);
+        await deps.sleep(WAIT_STATE_POLL_MS);
         return 'continue';
     }
 
     if (deps.isRateLimited() || deps.getRateLimitMode() === 'paused') {
-        await deps.sleep(1000);
+        await deps.sleep(WAIT_STATE_POLL_MS);
         return 'continue';
     }
 
@@ -182,15 +202,11 @@ const handleWaitStates = async (deps: ScrollRunnerDeps, state: ScrollLoopState) 
 };
 
 const performScrollIteration = async (deps: ScrollRunnerDeps, state: ScrollLoopState) => {
-    if (shouldBreakLoop(state, deps.maxScrolls)) {
-        return 'break';
-    }
-
+    state.scrollCount += 1;
     cleanupTweetDom(state.scrollCount, deps.logDebug);
     window.scrollTo(0, document.body.scrollHeight);
-    state.scrollCount += 1;
 
-    await deps.sleep(Math.max(deps.getCurrentDelay(), 3000));
+    await deps.sleep(Math.max(deps.getCurrentDelay(), MIN_SCROLL_DELAY_MS));
 
     if (await recoverFromTwitterError(deps)) {
         state.noChangeCount = 0;
@@ -203,14 +219,14 @@ const performScrollIteration = async (deps: ScrollRunnerDeps, state: ScrollLoopS
     if (
         deps.shouldPromptLooksDone({
             now: Date.now(),
-            idleThresholdMs: 30000,
+            idleThresholdMs: LOOKS_DONE_IDLE_THRESHOLD_MS,
             scrollCount: state.scrollCount,
             responsesCaptured,
             heightStable: currentHeight === state.lastScrollHeight,
         })
     ) {
         deps.onLooksDoneDetected(responsesCaptured);
-        await deps.sleep(1000);
+        await deps.sleep(WAIT_STATE_POLL_MS);
         return 'continue';
     }
 
@@ -233,10 +249,7 @@ export const runScrollToLoadMore = async (deps: ScrollRunnerDeps) => {
             continue;
         }
 
-        const iterationAction = await performScrollIteration(deps, state);
-        if (iterationAction === 'break') {
-            break;
-        }
+        await performScrollIteration(deps, state);
     }
 
     const responsesCaptured = deps.getResponsesCaptured();

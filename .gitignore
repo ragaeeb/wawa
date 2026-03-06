@@ -12,7 +12,7 @@
 
 # testing
 /coverage
-.output
+dist
 .wxt
 stats.html
 stats-*.json

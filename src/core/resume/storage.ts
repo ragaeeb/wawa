@@ -62,10 +62,6 @@ const normalizeResumePayload = (payload: unknown) => {
 };
 
 const splitIntoChunks = (value: string, chunkSize: number) => {
-    if (value.length === 0) {
-        return [''];
-    }
-
     const chunks: string[] = [];
     for (let index = 0; index < value.length; index += chunkSize) {
         chunks.push(value.slice(index, index + chunkSize));
@@ -162,20 +158,16 @@ const getResumePayload = async (indexedDbFactory: IDBFactory) => {
 
     const manifest = parseSerializedManifest(await readStoreValue(db, IDB_MANIFEST_KEY));
     if (manifest) {
-        const chunks: string[] = [];
-
-        for (let index = 0; index < manifest.chunkCount; index += 1) {
-            const chunk = await readStoreValue(db, idbChunkKey(index));
-            if (typeof chunk !== 'string') {
-                db.close();
-                return null;
-            }
-            chunks.push(chunk);
+        const chunkKeys = Array.from({ length: manifest.chunkCount }, (_unused, index) => idbChunkKey(index));
+        const chunkValues = await Promise.all(chunkKeys.map((key) => readStoreValue(db, key)));
+        if (chunkValues.some((chunk) => typeof chunk !== 'string')) {
+            db.close();
+            return null;
         }
 
         db.close();
         try {
-            return normalizeResumePayload(JSON.parse(chunks.join('')));
+            return normalizeResumePayload(JSON.parse((chunkValues as string[]).join('')));
         } catch {
             return null;
         }
@@ -230,43 +222,38 @@ const writeFallbackPayload = async (fallbackStorage: FallbackStorage, payload: R
     );
     const oldChunkCount = existingManifest?.chunkCount ?? 0;
 
-    for (let index = 0; index < chunks.length; index += 1) {
-        await fallbackStorage.set(fallbackChunkKey(index), chunks[index]);
-    }
+    await Promise.all(chunks.map((chunk, index) => fallbackStorage.set(fallbackChunkKey(index), chunk)));
 
     await fallbackStorage.set(STORAGE_KEYS.RESUME_PAYLOAD_FALLBACK, {
         version: SERIALIZED_CHUNK_VERSION,
         chunkCount: chunks.length,
     } satisfies SerializedManifest);
 
-    for (let index = chunks.length; index < oldChunkCount; index += 1) {
-        await fallbackStorage.remove(fallbackChunkKey(index));
-    }
+    await Promise.all(
+        Array.from({ length: Math.max(0, oldChunkCount - chunks.length) }, (_unused, offset) =>
+            fallbackStorage.remove(fallbackChunkKey(chunks.length + offset)),
+        ),
+    );
 };
 
 const readFallbackPayload = async (fallbackStorage: FallbackStorage) => {
     const raw = await fallbackStorage.get<unknown>(STORAGE_KEYS.RESUME_PAYLOAD_FALLBACK);
-    const normalizedRaw = normalizeResumePayload(raw);
-    if (normalizedRaw) {
-        return normalizedRaw;
-    }
-
     const manifest = parseSerializedManifest(raw);
     if (!manifest) {
+        return normalizeResumePayload(raw);
+    }
+
+    const chunkValues = await Promise.all(
+        Array.from({ length: manifest.chunkCount }, (_unused, index) =>
+            fallbackStorage.get<unknown>(fallbackChunkKey(index)),
+        ),
+    );
+    if (chunkValues.some((chunk) => typeof chunk !== 'string')) {
         return null;
     }
 
-    const chunks: string[] = [];
-    for (let index = 0; index < manifest.chunkCount; index += 1) {
-        const chunk = await fallbackStorage.get<unknown>(fallbackChunkKey(index));
-        if (typeof chunk !== 'string') {
-            return null;
-        }
-        chunks.push(chunk);
-    }
-
     try {
-        return normalizeResumePayload(JSON.parse(chunks.join('')));
+        return normalizeResumePayload(JSON.parse((chunkValues as string[]).join('')));
     } catch {
         return null;
     }
@@ -277,9 +264,11 @@ const clearFallbackPayload = async (fallbackStorage: FallbackStorage) => {
     const manifest = parseSerializedManifest(raw);
 
     if (manifest) {
-        for (let index = 0; index < manifest.chunkCount; index += 1) {
-            await fallbackStorage.remove(fallbackChunkKey(index));
-        }
+        await Promise.all(
+            Array.from({ length: manifest.chunkCount }, (_unused, index) =>
+                fallbackStorage.remove(fallbackChunkKey(index)),
+            ),
+        );
     }
 
     await fallbackStorage.remove(STORAGE_KEYS.RESUME_PAYLOAD_FALLBACK);

@@ -1,11 +1,11 @@
 # Privacy Policy for Wawa
 
-**Last Updated**: February 8, 2026  
-**Effective Date**: February 8, 2026
+**Last Updated**: March 5, 2026  
+**Effective Date**: March 5, 2026
 
 ## Introduction
 
-Wawa ("we", "our", or "the extension") is a browser extension designed to help users export their X/Twitter data locally. This Privacy Policy explains our commitment to your privacy and details how the extension handles your data.
+Wawa ("we", "our", or "the extension") is a browser extension designed to help users export their X/Twitter data locally and download X/Twitter videos directly from the web app. This Privacy Policy explains our commitment to your privacy and details how the extension handles your data.
 
 ## Core Privacy Principle
 
@@ -15,19 +15,24 @@ Wawa ("we", "our", or "the extension") is a browser extension designed to help u
 
 ### Data Accessed Locally
 
-To perform its core function of exporting your tweets, Wawa accesses the following data **only on your local device**:
+To perform its core functions of exporting your tweets and downloading X/Twitter videos, Wawa accesses the following data **only on your local device**:
 
 1. **Twitter/X GraphQL API Responses**
    - Tweet content (text, timestamps, IDs)
    - Author information (username, display name, verification status)
    - Engagement metrics (likes, retweets, replies)
    - Media URLs (if present in tweets)
-   
-2. **Rate Limit Information**
+
+2. **Twitter/X Video Media Requests**
+   - Twitter-hosted video URLs requested by your browser from `video.twimg.com`
+   - Associated tab context needed to match a visible video to its downloadable MP4 URL
+   - Used solely when you click a video `Download` button
+
+3. **Rate Limit Information**
    - HTTP headers from X/Twitter API (`x-rate-limit-limit`, `x-rate-limit-remaining`, `x-rate-limit-reset`)
    - Used solely to prevent excessive requests and respect Twitter's rate limits
 
-3. **User Preferences**
+4. **User Preferences**
    - Extension settings (export options, data format preferences)
    - Stored locally in Chrome's storage API
 
@@ -36,8 +41,9 @@ To perform its core function of exporting your tweets, Wawa accesses the followi
 All data processing occurs **entirely within your browser**:
 
 - **Interception**: Wawa intercepts X/Twitter GraphQL API responses as you browse
+- **Video Resolution**: Wawa observes Twitter's own video media requests so it can save the correct MP4 when you ask it to
 - **Storage**: Data is temporarily stored in your browser's IndexedDB or Chrome local storage
-- **Export**: You manually download exports as JSON files to your chosen location
+- **Export / Download**: You manually download exports as JSON files and videos as MP4 files to your chosen location
 - **No Transmission**: No data is ever sent to external servers, analytics services, or third parties
 
 ## Data Storage
@@ -59,8 +65,9 @@ All data processing occurs **entirely within your browser**:
 
 3. **Downloaded Files**
    - **Purpose**: Your exported tweet data
+   - **Also Includes**: Video files you explicitly choose to download
    - **Location**: Your computer's download folder (you choose the location)
-   - **Format**: JSON files
+   - **Format**: JSON files and MP4 video files
    - **Control**: Entirely under your control; delete or manage as you see fit
 
 ### No Cloud Storage
@@ -114,10 +121,25 @@ Wawa requests the following Chrome permissions:
 - **Justification**: Standard Chrome storage quota (~10MB) is insufficient for comprehensive exports
 - **Data Access**: Same as above, just allows larger volumes
 
-### 3. Host Permissions (`*://*.x.com/*`, `*://*.twitter.com/*`)
+### 3. Host Permissions (`*://*.x.com/*`)
 - **Purpose**: Inject the export button and intercept API responses on X/Twitter pages
 - **Justification**: Required to access the DOM and network responses on X/Twitter domains
 - **Scope**: Limited to X/Twitter domains only
+
+### 4. Downloads (`downloads`)
+- **Purpose**: Save export files and video files to your device when you explicitly request them
+- **Justification**: Required so Wawa can start browser-managed file downloads for JSON exports and MP4 videos
+- **Data Access**: Only files you choose to save
+
+### 5. Web Request (`webRequest`)
+- **Purpose**: Observe X/Twitter video media requests from `video.twimg.com`
+- **Justification**: Required to map an on-page video to the actual downloadable MP4 requested by your browser
+- **Scope**: Used only for Twitter-hosted video URLs
+
+### 6. Host Permission (`*://video.twimg.com/*`)
+- **Purpose**: Access Twitter-hosted video media URLs needed for the download feature
+- **Justification**: X/Twitter video files are served from `video.twimg.com`, not only from `x.com`
+- **Scope**: Limited to Twitter's media host
 
 ## User Control and Data Management
 
@@ -134,8 +156,8 @@ You have complete control over your data:
    - Uninstall the extension (removes all local storage)
    - Or: Clear browser data as above
 
-3. **Delete Downloaded Exports**:
-   - Simply delete the JSON files from your download folder
+3. **Delete Downloaded Files**:
+   - Simply delete the JSON and MP4 files from your download folder
 
 ### Uninstalling the Extension
 
@@ -256,4 +278,4 @@ The developer is not liable for:
 **Questions?** Open an issue on [GitHub](https://github.com/ragaeeb/wawa/issues).
 
 **Version**: 1.0  
-**Last Reviewed**: February 8, 2026
+**Last Reviewed**: March 5, 2026
