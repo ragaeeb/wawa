@@ -6,7 +6,7 @@
 [![Release](https://github.com/ragaeeb/wawa/actions/workflows/release.yml/badge.svg)](https://github.com/ragaeeb/wawa/actions/workflows/release.yml)
 [![License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.9-blue.svg)](https://www.typescriptlang.org/)
-[![Bun](https://img.shields.io/badge/Bun-1.3.9-black.svg)](https://bun.sh)
+[![Bun](https://img.shields.io/badge/Bun-1.3.10-black.svg)](https://bun.sh)
 [![Chrome Web Store](https://img.shields.io/badge/Chrome-Extension-green.svg)](https://chrome.google.com/webstore)
 
 > **Wawa** is a privacy-focused Chrome extension for complete local exports of your X/Twitter data and direct video downloads on X/Twitter pages, with no telemetry or server uploads.
@@ -44,7 +44,7 @@ bun run build
 # 1. Navigate to chrome://extensions
 # 2. Enable "Developer mode" (top-right toggle)
 # 3. Click "Load unpacked"
-# 4. Select the .output/chrome-mv3 directory
+# 4. Select the dist/chrome-mv3 directory
 ```
 
 #### From Release

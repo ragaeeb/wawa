@@ -121,7 +121,7 @@ Wawa requests the following Chrome permissions:
 - **Justification**: Standard Chrome storage quota (~10MB) is insufficient for comprehensive exports
 - **Data Access**: Same as above, just allows larger volumes
 
-### 3. Host Permissions (`*://*.x.com/*`, `*://*.twitter.com/*`)
+### 3. Host Permissions (`*://*.x.com/*`)
 - **Purpose**: Inject the export button and intercept API responses on X/Twitter pages
 - **Justification**: Required to access the DOM and network responses on X/Twitter domains
 - **Scope**: Limited to X/Twitter domains only
@@ -278,4 +278,4 @@ The developer is not liable for:
 **Questions?** Open an issue on [GitHub](https://github.com/ragaeeb/wawa/issues).
 
 **Version**: 1.0  
-**Last Reviewed**: February 8, 2026
+**Last Reviewed**: March 5, 2026

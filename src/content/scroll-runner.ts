@@ -156,6 +156,10 @@ const runCooldownCycle = async (deps: ScrollRunnerDeps) => {
     }
 
     deps.removeCooldownUI();
+    if (!deps.isExporting()) {
+        return;
+    }
+
     deps.onCooldownComplete();
     deps.updateButton('🟢 Resuming...');
     await deps.sleep(WAIT_STATE_POLL_MS);
@@ -163,6 +167,10 @@ const runCooldownCycle = async (deps: ScrollRunnerDeps) => {
 
 const handleWaitStates = async (deps: ScrollRunnerDeps, state: ScrollLoopState) => {
     if (deps.getAbortSignal()?.aborted) {
+        return 'break';
+    }
+
+    if (!deps.isExporting()) {
         return 'break';
     }
 

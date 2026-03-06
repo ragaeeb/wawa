@@ -202,4 +202,46 @@ describe('x-grok api', () => {
         expect(result.failed).toBe(1);
         expect(downloads).toHaveLength(1);
     });
+
+    it('should continue when one conversation download handler throws', async () => {
+        const downloads: string[] = [];
+        const fetchImpl = mock(async (input: RequestInfo | URL) => {
+            const url = String(input);
+            if (url.includes('/stored-history-id/GrokHistory')) {
+                return new Response(JSON.stringify(buildHistoryPayload(['111', '222'])), { status: 200 });
+            }
+            if (url.includes('restId%22%3A%22111%22') || url.includes('"restId":"111"')) {
+                return new Response(JSON.stringify(buildConversationPayload('111')), { status: 200 });
+            }
+            if (url.includes('restId%22%3A%22222%22') || url.includes('"restId":"222"')) {
+                return new Response(JSON.stringify(buildConversationPayload('222')), { status: 200 });
+            }
+            return new Response('', { status: 404 });
+        }) as unknown as typeof fetch;
+
+        const result = await runXGrokBulkExport({
+            context: {
+                historyQueryId: 'stored-history-id',
+                detailQueryId: 'observed-detail-id',
+                updatedAt: 10,
+            },
+            csrfToken: 'csrf',
+            maxItems: null,
+            fetchImpl,
+            loggers: createLoggers(),
+            onDownload: (conversation, filename) => {
+                if (conversation.conversation_id === '111') {
+                    throw new Error('disk full');
+                }
+                downloads.push(filename);
+            },
+        });
+
+        expect(result.discovered).toBe(2);
+        expect(result.exported).toBe(1);
+        expect(result.failed).toBe(1);
+        expect(result.warnings).toContain('X-Grok export failed for 111: disk full');
+        expect(downloads).toHaveLength(1);
+        expect(downloads[0]).toContain('Conversation_2');
+    });
 });

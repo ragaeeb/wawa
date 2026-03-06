@@ -1,7 +1,9 @@
 import { createInitialLifecycle, type ExportLifecycleSnapshot } from '@/core/rate-limit/state';
+import type { TweetItem } from '@/types/domain';
 
-export type InterceptedResponsePayload = Record<string, any>;
+export type InterceptedResponsePayload = Record<string, unknown>;
 export type AutoStartContext = Record<string, unknown>;
+export type CollectedTweet = TweetItem;
 
 export type RuntimeWindow = Window &
     typeof globalThis & {
@@ -10,7 +12,13 @@ export type RuntimeWindow = Window &
     };
 
 export type RuntimeState = {
-    interceptedResponses: InterceptedResponsePayload[];
+    /**
+     * Compact export buffer: retain only unique collected tweets plus a raw response count.
+     * Raw intercepted GraphQL payloads are parsed immediately and then discarded.
+     */
+    collectedTweets: CollectedTweet[];
+    seenCollectedTweetIds: Set<string>;
+    capturedResponsesCount: number;
     isRateLimited: boolean;
     isPendingDone: boolean;
     isExporting: boolean;
@@ -27,7 +35,9 @@ export const createRuntimeState = (): RuntimeState => {
     const now = Date.now();
 
     return {
-        interceptedResponses: [],
+        collectedTweets: [],
+        seenCollectedTweetIds: new Set(),
+        capturedResponsesCount: 0,
         isRateLimited: false,
         isPendingDone: false,
         isExporting: false,

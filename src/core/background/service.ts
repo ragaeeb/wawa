@@ -86,8 +86,13 @@ const sanitizeSegment = (value: string) =>
 
 const buildFilename = (url: string, tweetId?: string, mediaId?: string) => {
     const id = sanitizeSegment(tweetId ?? mediaId ?? `${Date.now()}`) || `${Date.now()}`;
-    const extMatch = new URL(url).pathname.match(/\.([a-z0-9]+)$/i);
-    const ext = extMatch?.[1]?.toLowerCase() ?? 'mp4';
+    let ext = 'mp4';
+    try {
+        const extMatch = new URL(url).pathname.match(/\.([a-z0-9]+)$/i);
+        ext = extMatch?.[1]?.toLowerCase() ?? 'mp4';
+    } catch {
+        // Fall back to a safe default extension when the source URL cannot be parsed.
+    }
     return `wawa-video-${id}.${ext}`;
 };
 

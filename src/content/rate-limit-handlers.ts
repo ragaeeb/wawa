@@ -30,6 +30,9 @@ export type RateLimitHandlers = {
 };
 
 export const createRateLimitHandlers = (input: CreateRateLimitHandlersInput) => {
+    const asAnyRecord = (value: unknown): AnyRecord | null =>
+        value && typeof value === 'object' ? (value as AnyRecord) : null;
+
     const applyRateLimitUpdate = (rateLimitInfo: AnyRecord | null | undefined) => {
         const result = applyRateLimitInfo(input.rateLimitState, rateLimitInfo ?? null);
 
@@ -82,7 +85,7 @@ export const createRateLimitHandlers = (input: CreateRateLimitHandlersInput) => 
         input.addInterceptedResponse(payload);
         input.markTimelineActivity();
 
-        applyRateLimitUpdate(payload?.rateLimitInfo);
+        applyRateLimitUpdate(asAnyRecord(payload.rateLimitInfo));
 
         if (input.getIsRateLimited() && input.rateLimitState.mode !== 'paused') {
             input.setIsRateLimited(false);

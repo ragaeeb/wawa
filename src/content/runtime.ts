@@ -24,7 +24,6 @@ import { createRuntimeLogger } from '@/content/runtime-logger';
 import { createRuntimeScrollExport } from '@/content/runtime-scroll-export';
 import { createRuntimeState, type RuntimeWindow } from '@/content/runtime-state';
 import { createRuntimeXGrok } from '@/content/runtime-x-grok';
-import { extractTweetsFromResponses } from '@/content/timeline-collector';
 import { getCsrfTokenFromCookieString, resolveUserByScreenName } from '@/content/twitter-user-api';
 import { extractUsernameFromLocation } from '@/content/url-username';
 
@@ -55,6 +54,12 @@ import { extractUsernameFromLocation } from '@/content/url-username';
     const logDebug = runtimeLogger.logDebug;
     const logWarn = runtimeLogger.logWarn;
     const logError = runtimeLogger.logError;
+
+    const clearCollectedTweetState = () => {
+        state.collectedTweets = [];
+        state.seenCollectedTweetIds.clear();
+        state.capturedResponsesCount = 0;
+    };
 
     const downloadRuntimeFile = (filename: string, content: string, mime: string) => {
         logInfo('Downloading file', { filename, size: content.length });
@@ -95,11 +100,8 @@ import { extractUsernameFromLocation } from '@/content/url-username';
         return extractUsernameFromLocation(window.location.pathname, window.location.search);
     };
 
-    const extractTweetsFromInterceptedResponses = (targetUserId: string) => {
-        return extractTweetsFromResponses(state.interceptedResponses, targetUserId, {
-            logInfo,
-            logDebug,
-        });
+    const extractTweetsFromInterceptedResponses = (_targetUserId: string) => {
+        return state.collectedTweets.slice();
     };
 
     const getInterceptorBridge = () => {
@@ -125,7 +127,7 @@ import { extractUsernameFromLocation } from '@/content/url-username';
 
                 scrollExportRuntime?.handleInterceptedResponseMessage(payload);
             },
-            getCapturedCount: () => state.interceptedResponses.length,
+            getCapturedCount: () => state.capturedResponsesCount,
             logInfo,
             logError,
         });
@@ -134,7 +136,7 @@ import { extractUsernameFromLocation } from '@/content/url-username';
     };
 
     const startFetchInterception = async () => {
-        state.interceptedResponses = [];
+        clearCollectedTweetState();
         await getInterceptorBridge().start();
     };
 

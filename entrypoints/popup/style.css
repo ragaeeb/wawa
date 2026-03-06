@@ -70,7 +70,7 @@ h1 {
 }
 
 code {
-    font-family: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace;
+    font-family: SFMono-Regular, Consolas, "Liberation Mono", Menlo, monospace;
     font-size: 11px;
     background: #e2e8f0;
     padding: 1px 4px;

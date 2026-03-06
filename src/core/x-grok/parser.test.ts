@@ -70,6 +70,14 @@ describe('x-grok parser', () => {
         ).toBe('2029114150362702208');
     });
 
+    it('should resolve conversation ids from relative detail urls', () => {
+        expect(
+            resolveXGrokConversationIdFromUrl(
+                `/i/api/graphql/test/GrokConversationItemsByRestId?variables=${encodeURIComponent(JSON.stringify({ restId: '2029114150362702208' }))}`,
+            ),
+        ).toBe('2029114150362702208');
+    });
+
     it('should format filenames using the conversation title and timestamp', () => {
         const conversation = parseXGrokConversation(sampleConversation, {
             conversationId: '2029114150362702208',
@@ -108,6 +116,18 @@ describe('x-grok parser', () => {
 
         expect(result?.mapping['assistant-2']?.message?.content.content_type).toBe('text');
         expect(result?.default_model_slug).toBe('grok-3-mini');
+    });
+
+    it('should return null when every conversation item is malformed', () => {
+        expect(
+            parseXGrokConversation({
+                data: {
+                    grok_conversation_items_by_rest_id: {
+                        items: [null, {}, { sender_type: 'User' }],
+                    },
+                },
+            }),
+        ).toBeNull();
     });
 
     it('should return null when conversation ids cannot be read from the url', () => {

@@ -7,13 +7,13 @@ const freezeDate = (iso: string) => {
     const frozen = new RealDate(iso);
 
     class FakeDate extends RealDate {
-        constructor(value?: string | number | Date) {
-            if (value === undefined) {
-                super(frozen);
+        constructor(...args: ConstructorParameters<DateConstructor>) {
+            if (args[0] === undefined) {
+                super(frozen.getTime());
                 return;
             }
 
-            super(value);
+            super(...args);
         }
 
         static override now() {

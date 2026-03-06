@@ -41,6 +41,7 @@ export const isXGrokBulkExportMessage = (value: unknown): value is XGrokBulkExpo
     const typed = value as Partial<XGrokBulkExportMessage>;
     return (
         typed.type === WAWA_X_GROK_BULK_EXPORT_MESSAGE &&
-        (typed.limit === undefined || (typeof typed.limit === 'number' && Number.isFinite(typed.limit)))
+        (typed.limit === undefined ||
+            (typeof typed.limit === 'number' && Number.isInteger(typed.limit) && typed.limit >= 0))
     );
 };

@@ -123,6 +123,10 @@ export const createXGrokFeature = (input: CreateXGrokFeatureInput): XGrokFeature
             return;
         }
 
+        if (!observedContext) {
+            observedContext = await readContext();
+        }
+
         const nextContext = captureXGrokGraphqlContext(observedContext, url, nowImpl());
         if (!nextContext || !isContextChanged(observedContext, nextContext)) {
             return;

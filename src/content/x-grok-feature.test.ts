@@ -99,6 +99,39 @@ describe('x-grok feature', () => {
         expect(writeStoredContext).toHaveBeenCalledTimes(2);
     });
 
+    it('should hydrate stored context before merging observed urls', async () => {
+        const writeStoredContext = mock(async () => {});
+        const feature = createXGrokFeature({
+            getLocationPathname: () => '/i/grok',
+            getLocationSearch: () => '',
+            getCsrfToken: () => 'csrf',
+            getLanguage: () => 'en-US',
+            downloadJson: mock(() => {}),
+            readStoredContext: async () => ({
+                historyQueryId: 'stored-history-id',
+                updatedAt: 10,
+            }),
+            writeStoredContext,
+            loggers: createLoggers(),
+            nowImpl: () => 123,
+        });
+
+        await feature.observeInterceptedUrl(
+            'https://x.com/i/api/graphql/detail-id/GrokConversationItemsByRestId?variables=%7B%22restId%22%3A%221%22%7D',
+        );
+
+        expect(feature.getObservedContext()).toEqual({
+            historyQueryId: 'stored-history-id',
+            detailQueryId: 'detail-id',
+            updatedAt: 123,
+        });
+        expect(writeStoredContext).toHaveBeenCalledWith({
+            historyQueryId: 'stored-history-id',
+            detailQueryId: 'detail-id',
+            updatedAt: 123,
+        });
+    });
+
     it('should export the current conversation using stored context', async () => {
         const downloadJson = mock(() => {});
         const fetchConversationById = mock(async (conversationId: string, input: { context: unknown }) => {

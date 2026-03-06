@@ -335,24 +335,24 @@ export const runXGrokBulkExport = async (input: BulkExportInput): Promise<XGrokB
 
     for (const conversationId of listResult.ids) {
         attempted += 1;
-        const conversation = await fetchXGrokConversationById(conversationId, {
-            ...requestContext,
-            titleCache: listResult.titles,
-        });
-        if (!conversation) {
-            failed += 1;
-            input.onProgress?.({
-                discovered: listResult.ids.length,
-                attempted,
-                exported,
-                failed,
-                remaining: Math.max(0, listResult.ids.length - attempted),
+        try {
+            const conversation = await fetchXGrokConversationById(conversationId, {
+                ...requestContext,
+                titleCache: listResult.titles,
             });
-            continue;
+            if (!conversation) {
+                failed += 1;
+            } else {
+                input.onDownload(conversation, formatXGrokFilename(conversation));
+                exported += 1;
+            }
+        } catch (error) {
+            failed += 1;
+            listResult.warnings.push(
+                `X-Grok export failed for ${conversationId}: ${error instanceof Error ? error.message : String(error)}`,
+            );
         }
 
-        input.onDownload(conversation, formatXGrokFilename(conversation));
-        exported += 1;
         input.onProgress?.({
             discovered: listResult.ids.length,
             attempted,

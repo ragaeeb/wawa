@@ -210,7 +210,7 @@ Wawa is not affiliated with X Corp or Twitter, Inc. This is an independent tool 
 
 ---
 
-### 3. Host Permissions: `*://*.x.com/*` and `*://*.twitter.com/*`
+### 3. Host Permissions: `*://*.x.com/*`
 
 **Purpose**: Inject export functionality and intercept GraphQL API responses on X/Twitter pages.
 
@@ -312,14 +312,14 @@ Wawa does **not** use remote code. All code is:
 **Build Process**:
 1. TypeScript source code in `src/` directory
 2. Compiled by WXT + Vite bundler
-3. Output to `.output/chrome-mv3/` directory
+3. Output to `dist/chrome-mv3/` directory
 4. All code is static and reviewable in the submitted ZIP
 
 **Verification**:
 You can verify this by inspecting the built extension:
-- `.output/chrome-mv3/content-scripts/content.js` - all code is inline
-- `.output/chrome-mv3/background.js` - all code is inline
-- `.output/chrome-mv3/interceptor.js` - all code is inline
+- `dist/chrome-mv3/content-scripts/content.js` - all code is inline
+- `dist/chrome-mv3/background.js` - all code is inline
+- `dist/chrome-mv3/interceptor.js` - all code is inline
 
 **Content Security Policy**:
 Our manifest CSP implicitly enforces:

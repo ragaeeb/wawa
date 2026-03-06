@@ -8,7 +8,7 @@ export default {
             {
                 prepareCmd:
                     // biome-ignore lint/suspicious/noTemplateCurlyInString: Needed for semantic release
-                    "rm -f .output/*.zip && node -e \"const fs=require('node:fs');const path=require('node:path');const pkgPath=path.resolve('package.json');const pkg=JSON.parse(fs.readFileSync(pkgPath,'utf8'));pkg.version='${nextRelease.version}';fs.writeFileSync(pkgPath, JSON.stringify(pkg,null,4)+'\\\\n');\" && bun run build && bun run zip",
+                    "rm -f dist/*.zip && node -e \"const fs=require('node:fs');const path=require('node:path');const pkgPath=path.resolve('package.json');const pkg=JSON.parse(fs.readFileSync(pkgPath,'utf8'));pkg.version='${nextRelease.version}';fs.writeFileSync(pkgPath, JSON.stringify(pkg,null,4)+'\\\\n');\" && bun run build && bun run zip",
             },
         ],
         [
@@ -16,7 +16,7 @@ export default {
             {
                 assets: [
                     {
-                        path: '.output/wawa-minimal-*.zip',
+                        path: 'dist/wawa-minimal-*.zip',
                         // biome-ignore lint/suspicious/noTemplateCurlyInString: Needed for semantic release
                         name: 'wawa-minimal-${nextRelease.version}-chrome.zip',
                         label: 'Chrome extension build',

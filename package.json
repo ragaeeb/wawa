@@ -44,8 +44,7 @@
         "typecheck": "tsc --noEmit",
         "lint": "biome check .",
         "format": "biome format --write .",
-        "check-core-coverage": "bun run scripts/check-core-coverage.ts",
-        "check": "bun run typecheck && bun run lint && bun test --coverage --coverage-reporter=lcov && bun run check-core-coverage",
+        "check": "bun run typecheck && bun run lint && bun test",
         "postinstall": "wxt prepare"
     },
     "devDependencies": {

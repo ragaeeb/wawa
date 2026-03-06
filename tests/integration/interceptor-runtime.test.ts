@@ -100,6 +100,21 @@ describe('interceptor runtime integration', () => {
         expect(posted[0]?.payload?.url).toBe('https://x.com/i/api/graphql/abc/GrokHistory');
     });
 
+    it('should post WAWA_INTERCEPTED_RESPONSE for x-grok detail graphql responses', async () => {
+        fetchImpl = async () =>
+            new Response(JSON.stringify({ data: { grok_conversation_items_by_rest_id: { items: [] } } }), {
+                status: 200,
+                headers: {
+                    'content-type': 'application/json',
+                },
+            });
+
+        await window.fetch('https://x.com/i/api/graphql/abc/GrokConversationItemsByRestId');
+
+        expect(posted[0]?.type).toBe('WAWA_INTERCEPTED_RESPONSE');
+        expect(posted[0]?.payload?.url).toBe('https://x.com/i/api/graphql/abc/GrokConversationItemsByRestId');
+    });
+
     it('should ignore non-target URLs', async () => {
         fetchImpl = async () => new Response(JSON.stringify({ ok: true }), { status: 200 });
 

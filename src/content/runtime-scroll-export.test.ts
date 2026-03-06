@@ -87,11 +87,12 @@ describe('createRuntimeScrollExport', () => {
 
         input.state.isExporting = true;
         input.state.isRateLimited = true;
-        input.state.abortController = new AbortController();
+        const abortController = new AbortController();
+        input.state.abortController = abortController;
 
         runtime.handleCancelExport();
 
-        expect(input.state.abortController?.signal.aborted).toBeTrue();
+        expect(abortController.signal.aborted).toBeTrue();
         expect(input.state.isExporting).toBe(false);
         expect(input.state.isRateLimited).toBe(false);
         expect(input.state.lifecycle.status).toBe('cancelled');
@@ -105,7 +106,8 @@ describe('createRuntimeScrollExport', () => {
 
         runtime.handleInterceptedResponseMessage({ data: { ok: true } });
 
-        expect(input.state.interceptedResponses).toEqual([]);
+        expect(input.state.collectedTweets).toEqual([]);
+        expect(input.state.capturedResponsesCount).toBe(0);
     });
 
     it('should show an error when no username can be resolved', async () => {
@@ -175,6 +177,44 @@ describe('createRuntimeScrollExport', () => {
         expect(input.state.currentExportUserId).toBe('user-1');
         expect(input.state.isExporting).toBe(false);
         expect(input.state.abortController).toBeNull();
+    });
+
+    it('should clear collected state on cancellation', () => {
+        const input = createInput();
+        const runtime = createRuntimeScrollExport(input);
+
+        input.state.isExporting = true;
+        input.state.currentExportUserId = 'user-1';
+        input.state.collectedTweets = [{ id: '1' }];
+        input.state.seenCollectedTweetIds.add('1');
+        input.state.capturedResponsesCount = 3;
+
+        runtime.handleCancelExport();
+
+        expect(input.state.collectedTweets).toEqual([]);
+        expect(Array.from(input.state.seenCollectedTweetIds)).toEqual([]);
+        expect(input.state.capturedResponsesCount).toBe(0);
+        expect(input.state.currentExportUserId).toBeNull();
+    });
+
+    it('should clear collected state when scroll export setup fails', async () => {
+        const input = createInput();
+        input.state.collectedTweets = [{ id: 'stale' }];
+        input.state.seenCollectedTweetIds.add('stale');
+        input.state.capturedResponsesCount = 2;
+        input.implementations.resolveUserForExport = mock(async () => {
+            throw new Error('resolve failed');
+        }) as ScrollExportImplementations['resolveUserForExport'];
+        const runtime = createRuntimeScrollExport(input);
+
+        await runtime.handleScrollExport();
+
+        expect(input.stopFetchInterception).toHaveBeenCalled();
+        expect(input.state.collectedTweets).toEqual([]);
+        expect(Array.from(input.state.seenCollectedTweetIds)).toEqual([]);
+        expect(input.state.capturedResponsesCount).toBe(0);
+        expect(input.state.currentExportUserId).toBeNull();
+        expect(input.state.isExporting).toBe(false);
     });
 
     it('should delegate resume-from-file handling and expose the reset callback', () => {

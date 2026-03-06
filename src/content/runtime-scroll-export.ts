@@ -18,6 +18,7 @@ import { createRuntimePanels } from '@/content/runtime-panels';
 import type { InterceptedResponsePayload, RuntimeState, RuntimeWindow } from '@/content/runtime-state';
 import { runScrollExportSession } from '@/content/scroll-export-session';
 import { runScrollToLoadMore } from '@/content/scroll-runner';
+import { appendTweetsFromResponseData } from '@/content/timeline-collector';
 import { createInitialLifecycle, reduceExportLifecycle, shouldPromptLooksDone } from '@/core/rate-limit/state';
 import { parseTweetDate as parseTweetDateCore } from '@/core/resume/payload';
 import type { ResumeStorage } from '@/core/resume/storage';
@@ -110,12 +111,21 @@ export const createRuntimeScrollExport = (input: CreateRuntimeScrollExportInput)
     const writeToClipboard = input.writeToClipboard ?? ((value: string) => navigator.clipboard.writeText(value));
     const goBack = input.goBack ?? (() => window.history.back());
 
-    const clearInterceptedResponses = () => {
-        input.state.interceptedResponses = [];
+    const clearCollectedTweetState = () => {
+        input.state.collectedTweets = [];
+        input.state.seenCollectedTweetIds.clear();
+        input.state.capturedResponsesCount = 0;
     };
 
     const abortActiveRun = () => {
         input.state.abortController?.abort();
+    };
+
+    const stopInterceptionAndClearBuffers = () => {
+        input.stopFetchInterception();
+        clearCollectedTweetState();
+        input.state.currentExportUserId = null;
+        input.runtimeWindow.wawaSkipCooldown = false;
     };
 
     const markTimelineActivity = () => {
@@ -202,16 +212,17 @@ export const createRuntimeScrollExport = (input: CreateRuntimeScrollExportInput)
         input.state.isPendingDone = false;
         input.state.lifecycle = reduceExportLifecycle(input.state.lifecycle, { type: 'cancel' });
         abortActiveRun();
+        input.state.abortController = null;
         input.state.isExporting = false;
         input.state.isRateLimited = false;
-        input.stopFetchInterception();
+        stopInterceptionAndClearBuffers();
         input.buttonUi.resetButton();
     };
 
     const runtimePanels = createRuntimePanels({
         getContainer: input.buttonUi.getContainer,
         rateLimitState: input.rateLimitState,
-        getBatchesCollected: () => input.state.interceptedResponses.length,
+        getBatchesCollected: () => input.state.capturedResponsesCount,
         onDownloadConfirmed: () => {
             input.state.isPendingDone = false;
             abortActiveRun();
@@ -256,9 +267,16 @@ export const createRuntimeScrollExport = (input: CreateRuntimeScrollExportInput)
         reduceLifecycle: reduceExportLifecycle,
         markTimelineActivity,
         addInterceptedResponse: (payload) => {
-            input.state.interceptedResponses.push(payload);
+            input.state.capturedResponsesCount += 1;
+            appendTweetsFromResponseData(
+                payload.data,
+                input.state.currentExportUserId ?? 'unknown',
+                input.state.seenCollectedTweetIds,
+                input.state.collectedTweets,
+                input.loggers,
+            );
         },
-        getInterceptedResponseCount: () => input.state.interceptedResponses.length,
+        getInterceptedResponseCount: () => input.state.capturedResponsesCount,
         onRateLimitUiRequired: () => {
             runtimePanels.showRateLimit();
         },
@@ -330,7 +348,7 @@ export const createRuntimeScrollExport = (input: CreateRuntimeScrollExportInput)
                 markTimelineActivity();
             },
             sleep: input.sleep,
-            getResponsesCaptured: () => input.state.interceptedResponses.length,
+            getResponsesCaptured: () => input.state.capturedResponsesCount,
             shouldPromptLooksDone: (scrollState) => {
                 return shouldPromptLooksDone(input.state.lifecycle, scrollState);
             },
@@ -344,6 +362,7 @@ export const createRuntimeScrollExport = (input: CreateRuntimeScrollExportInput)
     };
 
     const resetRunState = () => {
+        clearCollectedTweetState();
         input.state.isRateLimited = false;
         input.state.isPendingDone = false;
         const runStartAt = Date.now();
@@ -367,9 +386,10 @@ export const createRuntimeScrollExport = (input: CreateRuntimeScrollExportInput)
         input.loggers.logInfo('User requested export cancellation');
         abortActiveRun();
         input.state.lifecycle = reduceExportLifecycle(input.state.lifecycle, { type: 'cancel' });
+        input.state.abortController = null;
         input.state.isExporting = false;
         input.state.isRateLimited = false;
-        input.stopFetchInterception();
+        stopInterceptionAndClearBuffers();
         input.buttonUi.updateButton('❌ Cancelled');
         setTimeout(input.buttonUi.resetButton, 2000);
     };
@@ -473,14 +493,14 @@ export const createRuntimeScrollExport = (input: CreateRuntimeScrollExportInput)
                     return mergeResumeTweets(input.resumeSession, tweets);
                 },
                 downloadFile: input.downloadFile,
-                getCapturedResponsesCount: () => input.state.interceptedResponses.length,
+                getCapturedResponsesCount: () => input.state.capturedResponsesCount,
                 clearResumeState: async () => {
                     clearResumeSessionInMemory(input.resumeSession);
                     await clearResumeSessionPersisted(input.resumeStorage, input.loggers);
                 },
                 completeExportUi,
                 stopFetchInterception: input.stopFetchInterception,
-                clearInterceptedResponses,
+                clearInterceptedResponses: clearCollectedTweetState,
                 finalizeRuntimeState: () => {
                     input.state.isExporting = false;
                     input.state.abortController = null;
@@ -492,7 +512,10 @@ export const createRuntimeScrollExport = (input: CreateRuntimeScrollExportInput)
             input.loggers.logError('Scroll export failed', { error: message });
             input.buttonUi.updateButton('❌ Export failed');
             setTimeout(input.buttonUi.resetButton, 3000);
+            stopInterceptionAndClearBuffers();
             input.state.isExporting = false;
+            input.state.isRateLimited = false;
+            input.state.isPendingDone = false;
             input.state.abortController = null;
         }
     };

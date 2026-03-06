@@ -1,4 +1,4 @@
-export const isXGrokPage = (pathname: string) => pathname.startsWith('/i/grok');
+export const isXGrokPage = (pathname: string) => pathname === '/i/grok' || pathname.startsWith('/i/grok/');
 
 export const readXGrokConversationIdFromSearch = (search: string) => {
     const conversationId = new URLSearchParams(search).get('conversation');

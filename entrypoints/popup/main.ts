@@ -1,13 +1,12 @@
 import {
     DEFAULT_X_GROK_BULK_EXPORT_LIMIT,
-    isXGrokBulkExportMessage,
     normalizeXGrokBulkExportLimit,
     WAWA_X_GROK_BULK_EXPORT_MESSAGE,
     X_GROK_BULK_EXPORT_LIMIT_STORAGE_KEY,
-    type XGrokBulkExportResponse,
 } from '@/content/x-grok-contracts';
 import { sendRuntimeMessage } from '@/platform/chrome/runtime';
 import type { LogEntry } from '@/types/domain';
+import { persistGrokBulkLimitChange, runGrokBulkExport } from './grok-bulk-export';
 import './style.css';
 
 const elements = {
@@ -46,12 +45,6 @@ const saveBulkExportLimit = async (value: number) => {
     await chrome.storage.local.set({
         [X_GROK_BULK_EXPORT_LIMIT_STORAGE_KEY]: normalizeXGrokBulkExportLimit(value),
     });
-};
-
-const formatBulkExportStatus = (response: XGrokBulkExportResponse & { ok: true }) => {
-    const { result } = response;
-    const warningText = result.warnings.length > 0 ? ` Warnings: ${result.warnings.join(' | ')}` : '';
-    return `Exported ${result.exported}/${result.attempted} Grok chats.${warningText}`;
 };
 
 const formatLogEntry = (entry: LogEntry): string => {
@@ -93,43 +86,25 @@ const clearLogs = async (): Promise<void> => {
 };
 
 const exportGrokChats = async (): Promise<void> => {
-    const limit = normalizeXGrokBulkExportLimit(Number(elements.grokBulkLimit.value));
-    elements.grokBulkLimit.value = String(limit);
-    await saveBulkExportLimit(limit);
-
-    const tabId = await getActiveTabId();
-    if (tabId === null) {
-        setStatus('No active tab found.', true);
-        return;
-    }
-
-    elements.exportGrokChats.disabled = true;
-    setStatus('Exporting Grok chats...');
-
-    try {
-        const message = {
-            type: WAWA_X_GROK_BULK_EXPORT_MESSAGE,
-            limit,
-        };
-        if (!isXGrokBulkExportMessage(message)) {
-            throw new Error('Invalid Grok export request.');
-        }
-
-        const response = (await chrome.tabs.sendMessage(tabId, message)) as XGrokBulkExportResponse | undefined;
-        if (!response) {
-            throw new Error('No response from the content script. Open an x.com tab and try again.');
-        }
-        if (!response.ok) {
-            throw new Error(response.error);
-        }
-
-        setStatus(formatBulkExportStatus(response));
-    } catch (error) {
-        const message = error instanceof Error ? error.message : String(error);
-        setStatus(`Bulk export failed: ${message}`, true);
-    } finally {
-        elements.exportGrokChats.disabled = false;
-    }
+    await runGrokBulkExport({
+        rawLimit: elements.grokBulkLimit.value,
+        normalizeLimit: normalizeXGrokBulkExportLimit,
+        setLimitValue: (value) => {
+            elements.grokBulkLimit.value = value;
+        },
+        saveLimit: saveBulkExportLimit,
+        getActiveTabId,
+        sendTabMessage: (tabId, limit) => {
+            return chrome.tabs.sendMessage(tabId, {
+                type: WAWA_X_GROK_BULK_EXPORT_MESSAGE,
+                limit,
+            });
+        },
+        setStatus,
+        setBusy: (busy) => {
+            elements.exportGrokChats.disabled = busy;
+        },
+    });
 };
 
 elements.refreshLogs.addEventListener('click', () => {
@@ -141,9 +116,15 @@ elements.clearLogs.addEventListener('click', () => {
 });
 
 elements.grokBulkLimit.addEventListener('change', () => {
-    const limit = normalizeXGrokBulkExportLimit(Number(elements.grokBulkLimit.value));
-    elements.grokBulkLimit.value = String(limit);
-    void saveBulkExportLimit(limit);
+    void persistGrokBulkLimitChange({
+        rawLimit: elements.grokBulkLimit.value,
+        normalizeLimit: normalizeXGrokBulkExportLimit,
+        setLimitValue: (value) => {
+            elements.grokBulkLimit.value = value;
+        },
+        saveLimit: saveBulkExportLimit,
+        setStatus,
+    });
 });
 
 elements.exportGrokChats.addEventListener('click', () => {

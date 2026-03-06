@@ -61,7 +61,7 @@ const extractModelSlug = (item: Record<string, unknown>) => {
 
 const parseConversationIdFromUrl = (url: string) => {
     try {
-        const variables = new URL(url).searchParams.get('variables');
+        const variables = new URL(url, 'https://x.com').searchParams.get('variables');
         if (!variables) {
             return null;
         }
@@ -268,13 +268,19 @@ export const parseXGrokConversation = (
     }
 
     const state = createConversationState(options);
+    let parsedCount = 0;
 
-    for (let index = 0; index < items.length; index += 1) {
-        const parsedItem = parseItem(items[index]);
+    for (const item of items) {
+        const parsedItem = parseItem(item);
         if (!parsedItem) {
             continue;
         }
-        applyParsedItem(state, parsedItem, index, options);
+        applyParsedItem(state, parsedItem, parsedCount, options);
+        parsedCount += 1;
+    }
+
+    if (parsedCount === 0) {
+        return null;
     }
 
     return {

@@ -112,6 +112,10 @@ const buildDownloadVideoMessage = (video: HTMLVideoElement): DownloadVideoMessag
     return message;
 };
 
+export const hasResolvableDownloadTarget = (message: DownloadVideoMessage) => {
+    return Boolean(message.tweetId || message.mediaId || message.fallbackUrl);
+};
+
 const setButtonState = (button: HTMLButtonElement, state: 'idle' | 'working' | 'done' | 'error') => {
     switch (state) {
         case 'idle':
@@ -138,6 +142,65 @@ const setButtonState = (button: HTMLButtonElement, state: 'idle' | 'working' | '
     }
 };
 
+type RequestVideoDownloadInput = {
+    video: HTMLVideoElement;
+    button: HTMLButtonElement;
+    sendMessage?: typeof sendRuntimeMessage;
+    logger?: Pick<typeof runtimeLogger, 'logInfo' | 'logWarn' | 'logError'>;
+};
+
+export const requestVideoDownload = async (input: RequestVideoDownloadInput) => {
+    const sendMessage = input.sendMessage ?? sendRuntimeMessage;
+    const logger = input.logger ?? runtimeLogger;
+    const { video, button } = input;
+
+    setButtonState(button, 'working');
+    button.title = '';
+
+    const message = buildDownloadVideoMessage(video);
+    if (!hasResolvableDownloadTarget(message)) {
+        button.title = 'This video cannot be downloaded from the current page state.';
+        logger.logWarn('Download skipped: no resolvable identifiers', {
+            videoId: video.getAttribute(VIDEO_ID_ATTR),
+        });
+        setButtonState(button, 'error');
+        return;
+    }
+
+    logger.logInfo('Download requested', {
+        mediaId: message.mediaId,
+        tweetId: message.tweetId,
+        videoId: video.getAttribute(VIDEO_ID_ATTR),
+    });
+
+    try {
+        const response = await sendMessage(message);
+
+        if (response.ok) {
+            logger.logInfo('Download queued', {
+                downloadId: response.downloadId,
+                mediaId: message.mediaId,
+                tweetId: message.tweetId,
+            });
+            setButtonState(button, 'done');
+            return;
+        }
+
+        button.title = response.error;
+        logger.logWarn('Download failed', {
+            error: response.error,
+            mediaId: message.mediaId,
+            tweetId: message.tweetId,
+        });
+        setButtonState(button, 'error');
+    } catch (error) {
+        const messageText = error instanceof Error ? error.message : String(error);
+        button.title = messageText;
+        logger.logError('Download request crashed', { error: messageText });
+        setButtonState(button, 'error');
+    }
+};
+
 const createButton = (video: HTMLVideoElement) => {
     const button = document.createElement('button');
     button.className = BUTTON_CLASS;
@@ -146,43 +209,7 @@ const createButton = (video: HTMLVideoElement) => {
     button.addEventListener('click', async (event) => {
         event.preventDefault();
         event.stopPropagation();
-
-        setButtonState(button, 'working');
-
-        const message = buildDownloadVideoMessage(video);
-
-        runtimeLogger.logInfo('Download requested', {
-            mediaId: message.mediaId,
-            tweetId: message.tweetId,
-            videoId: video.getAttribute(VIDEO_ID_ATTR),
-        });
-
-        try {
-            const response = await sendRuntimeMessage(message);
-
-            if (response.ok) {
-                runtimeLogger.logInfo('Download queued', {
-                    downloadId: response.downloadId,
-                    mediaId: message.mediaId,
-                    tweetId: message.tweetId,
-                });
-                setButtonState(button, 'done');
-                return;
-            }
-
-            button.title = response.error;
-            runtimeLogger.logWarn('Download failed', {
-                error: response.error,
-                mediaId: message.mediaId,
-                tweetId: message.tweetId,
-            });
-            setButtonState(button, 'error');
-        } catch (error) {
-            const message = error instanceof Error ? error.message : String(error);
-            button.title = message;
-            runtimeLogger.logError('Download request crashed', { error: message });
-            setButtonState(button, 'error');
-        }
+        await requestVideoDownload({ video, button });
     });
 
     return button;

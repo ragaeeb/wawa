@@ -88,4 +88,28 @@ describe('resume merge', () => {
             final_count: 1,
         });
     });
+
+    it('should dedupe id-less tweets case-insensitively by username', () => {
+        const previous: TweetItem[] = [
+            { created_at: '2024-01-01 00:00:00', text: 'same', author: { id: 'u1', username: 'TESTER' } },
+        ];
+        const next: TweetItem[] = [
+            { created_at: '2024-01-01 00:00:00', text: 'same', author: { id: 'u1', username: 'tester' } },
+        ];
+
+        const result = mergeTweets(next, previous);
+        expect(result.tweets).toHaveLength(1);
+        expect(result.mergeInfo?.duplicates_removed).toBe(1);
+    });
+
+    it('should dedupe id-less tweets with partial author info', () => {
+        const previous: TweetItem[] = [
+            { created_at: '2024-01-01 00:00:00', text: 'same' }, // no author
+        ];
+        const next: TweetItem[] = [{ created_at: '2024-01-01 00:00:00', text: 'same', favorite_count: 10 }];
+
+        const result = mergeTweets(next, previous);
+        expect(result.tweets).toHaveLength(1);
+        expect(result.tweets[0]?.favorite_count).toBe(10);
+    });
 });

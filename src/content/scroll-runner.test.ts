@@ -130,4 +130,22 @@ describe('runScrollToLoadMore', () => {
         expect(deps.updateProgress).toHaveBeenCalledTimes(9);
         expect(deps.logInfo).toHaveBeenLastCalledWith('Scroll loading complete: 9 scrolls, 0 responses captured');
     });
+
+    it('should not resume the export UI when cooldown ends after exporting stops', async () => {
+        let isExporting = true;
+        const deps = createDeps({
+            maxScrolls: 1,
+            getRateLimitMode: () => 'cooldown',
+            sleep: mock(async () => {
+                isExporting = false;
+            }),
+            isExporting: () => isExporting,
+        });
+
+        await runScrollToLoadMore(deps);
+
+        expect(deps.removeCooldownUI).toHaveBeenCalled();
+        expect(deps.onCooldownComplete).not.toHaveBeenCalled();
+        expect(deps.updateButton).not.toHaveBeenCalledWith('🟢 Resuming...');
+    });
 });

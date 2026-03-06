@@ -162,4 +162,29 @@ describe('background service', () => {
             error: 'downloads disabled',
         });
     });
+
+    it('should fall back to a safe filename extension for malformed download urls', async () => {
+        const download = mock(async (_options: chrome.downloads.DownloadOptions) => 25);
+        const service = createService({ download });
+
+        const result = await service.handleMessage(
+            {
+                type: 'downloadVideo',
+                tweetId: 'tweet-25',
+                fallbackUrl: 'not-a-valid-url',
+            },
+            { tab: { id: 25 } as chrome.tabs.Tab },
+        );
+
+        expect(result).toEqual({
+            ok: true,
+            downloadId: 25,
+            url: 'not-a-valid-url',
+        });
+        expect(download).toHaveBeenCalledWith(
+            expect.objectContaining({
+                filename: 'wawa-video-tweet-25.mp4',
+            }),
+        );
+    });
 });
