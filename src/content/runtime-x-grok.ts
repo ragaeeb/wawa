@@ -145,14 +145,21 @@ export const createRuntimeXGrok = (input: CreateRuntimeXGrokInput): RuntimeXGrok
             limit: (message as XGrokBulkExportMessage).limit ?? null,
         });
 
-        feature
-            .handleBulkExportMessage(message)
-            .then((response) => {
+        void (async () => {
+            try {
+                const response = await feature.handleBulkExportMessage(message);
                 sendResponse(response);
-            })
-            .finally(() => {
+            } catch (error) {
+                const errorMessage = error instanceof Error ? error.message : String(error);
+                input.loggers.logError('X-Grok bulk export failed', { error: errorMessage });
+                sendResponse({
+                    ok: false,
+                    error: errorMessage,
+                });
+            } finally {
                 input.state.isXGrokBulkExporting = false;
-            });
+            }
+        })();
 
         return true;
     };

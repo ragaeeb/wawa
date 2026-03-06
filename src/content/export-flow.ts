@@ -61,6 +61,13 @@ type CreateExportPayloadInput = {
     finalTweets: unknown[];
 };
 
+const PROFILE_SEARCH_UNTIL_WINDOW_DAYS = 32;
+
+const buildSearchUntilDate = () => {
+    const future = new Date(Date.now() + PROFILE_SEARCH_UNTIL_WINDOW_DAYS * 24 * 60 * 60 * 1000);
+    return future.toISOString().slice(0, 10);
+};
+
 /**
  * Builds a live-search URL from a raw X query expression.
  */
@@ -93,9 +100,7 @@ export const resolveSearchQueryForProfile = async ({
 
         const createdDate = new Date(createdAt);
         const since = createdDate.toISOString().slice(0, 10);
-        const untilDate = new Date();
-        untilDate.setMonth(untilDate.getMonth() + 1);
-        const until = untilDate.toISOString().slice(0, 10);
+        const until = buildSearchUntilDate();
 
         query += ` since:${since} until:${until}`;
         loggers.logInfo('Added date bounds to search', { since, until });

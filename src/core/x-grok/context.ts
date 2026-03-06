@@ -94,11 +94,7 @@ export const captureXGrokGraphqlContext = (
 
     const detailMatch = parsed.pathname.match(DETAIL_PATH_PATTERN);
     if (detailMatch) {
-        const detailQueryId = readOptionalString(detailMatch[1]);
-        if (!detailQueryId) {
-            return existing ?? null;
-        }
-        return buildDetailContext(existing, parsed, detailQueryId, now);
+        return buildDetailContext(existing, parsed, detailMatch[1], now);
     }
 
     const historyMatch = parsed.pathname.match(HISTORY_PATH_PATTERN);
@@ -106,10 +102,5 @@ export const captureXGrokGraphqlContext = (
         return existing ?? null;
     }
 
-    const historyQueryId = readOptionalString(historyMatch[1]);
-    if (!historyQueryId) {
-        return existing ?? null;
-    }
-
-    return buildHistoryContext(existing, historyQueryId, now);
+    return buildHistoryContext(existing, historyMatch[1], now);
 };

@@ -79,4 +79,24 @@ describe('export metadata assembly', () => {
         expect(meta.previous_export_completed_at).toBe('2026-02-01T11:00:00.000Z');
         expect(meta.export_started_at).toBe('2026-02-01T10:00:00.000Z');
     });
+
+    it('should fallback to legacy total_tweets_reported when reported_count is absent', () => {
+        const meta = buildConsolidatedMeta({
+            username: 'example',
+            startedAt: '2026-03-01T10:00:00.000Z',
+            completedAt: '2026-03-01T11:00:00.000Z',
+            newCollectedCount: 10,
+            previousCollectedCount: 5,
+            reportedCountCurrent: null,
+            previousMeta: {
+                username: 'example',
+                total_tweets_reported: 123,
+            },
+            collectionMethod: 'scroll-interception-resumed',
+            scrollResponsesCapturedCurrent: 2,
+            mergeInfo: null,
+        });
+
+        expect(meta.reported_count).toBe(123);
+    });
 });

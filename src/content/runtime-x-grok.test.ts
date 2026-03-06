@@ -202,6 +202,47 @@ describe('createRuntimeXGrok', () => {
         expect(input.state.isXGrokBulkExporting).toBe(false);
     });
 
+    it('should surface bulk export failures and release the busy flag', async () => {
+        const input = createInput();
+        input.feature = createFeature({
+            handleBulkExportMessage: async () => {
+                throw new Error('bulk boom');
+            },
+        });
+        const runtime = createRuntimeXGrok({
+            state: input.state,
+            getLocationPathname: () => '/i/grok',
+            getLocationSearch: () => '',
+            getCsrfToken: () => 'csrf',
+            getLanguage: () => 'en-US',
+            downloadJson: mock(() => {}),
+            ensureInterception: input.ensureInterception,
+            removeMainButton: input.removeMainButton,
+            loggers: input.loggers,
+            implementations: {
+                createFeature: () => input.feature,
+                createButtonController: () => input.controller,
+                scheduleReset: input.scheduleReset,
+            },
+        });
+        const sendResponse = mock(() => {});
+
+        const handled = runtime.handleRuntimeMessage(
+            {
+                type: WAWA_X_GROK_BULK_EXPORT_MESSAGE,
+                limit: 5,
+            },
+            sendResponse,
+        );
+
+        expect(handled).toBe(true);
+        await Promise.resolve();
+        await Promise.resolve();
+        expect(sendResponse).toHaveBeenCalledWith({ ok: false, error: 'bulk boom' });
+        expect(input.loggers.logError).toHaveBeenCalledWith('X-Grok bulk export failed', { error: 'bulk boom' });
+        expect(input.state.isXGrokBulkExporting).toBe(false);
+    });
+
     it('should reject bulk export requests while another export is running', () => {
         const input = createInput();
         input.state.isExporting = true;

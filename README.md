@@ -21,7 +21,7 @@
 - 🚦 **Rate Limit Aware**: Intelligent handling of Twitter's rate limits with auto-cooldowns
 - 💾 **Smart Storage**: Chunked IndexedDB storage with automatic fallback for large datasets
 - 🎯 **Focused Permissions**: Only requests permissions required for local export and local video download flows
-- 🧪 **80%+ Test Coverage**: Core business logic thoroughly tested
+- 🧪 **99% Core Coverage Gate**: `src/core/**` stays at >=99% line and function coverage
 
 ## 🚀 Quick Start
 
@@ -564,8 +564,8 @@ it('should transition from cooldown to running on exit', () => {
 
 ### Prerequisites
 
-- **Bun** 1.3.9 or later
-- **Node.js** 24 or later (for compatibility)
+- **Bun** 1.3.10 or later
+- **Node.js** 25 or later (release tooling compatibility)
 - **Chrome/Chromium** latest stable
 
 ### Setup
@@ -593,8 +593,8 @@ bun run dev
 | `bun run lint` | Lint code with Biome |
 | `bun run format` | Auto-format code |
 | `bun test` | Run test suite |
-| `bun run test:coverage` | Run tests with coverage check |
-| `bun run check` | Full validation (typecheck + lint + test) |
+| `bun test --coverage --coverage-reporter=lcov` | Run tests with coverage output |
+| `bun run check` | Full validation (typecheck + lint + tests with coverage gate) |
 
 ### Testing
 
@@ -609,11 +609,11 @@ bun test src/core/resume/merge.test.ts
 bun test --watch
 
 # Coverage report
-bun run test:coverage
+bun test --coverage --coverage-reporter=lcov
 ```
 
 **Coverage Requirements**:
-- Core modules (`src/core/**`): ≥80% line and function coverage
+- Core modules (`src/core/**`): ≥99% line and function coverage
 - Enforced in CI/CD pipeline
 - Script: `scripts/check-core-coverage.ts`
 

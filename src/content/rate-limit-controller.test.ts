@@ -18,7 +18,7 @@ describe('createRateLimitState', () => {
         expect(state.resetTime).toBe(0);
         expect(state.lastRequestTime).toBe(0);
         expect(state.retryCount).toBe(0);
-        expect(state.dynamicDelay).toBe(2500);
+        expect(state.dynamicDelay).toBe(3000);
     });
 
     it('should create a new state object each time', () => {

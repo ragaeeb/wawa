@@ -46,7 +46,7 @@ export const createRateLimitState = (): RateLimitState => ({
     resetTime: 0,
     lastRequestTime: 0,
     retryCount: 0,
-    dynamicDelay: 2500,
+    dynamicDelay: 3000,
 });
 
 /**

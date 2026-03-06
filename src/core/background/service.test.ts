@@ -64,6 +64,49 @@ describe('background service', () => {
         );
     });
 
+    it('should prefer higher resolution tracked videos for the same media id', async () => {
+        const download = mock(async (_options: chrome.downloads.DownloadOptions) => 23);
+        const service = createService({ download });
+
+        service.trackVideoUrl(55, 'https://video.twimg.com/ext_tw_video/123/pu/vid/320x180/foo.mp4?tag=1');
+        service.trackVideoUrl(55, 'https://video.twimg.com/ext_tw_video/123/pu/vid/1280x720/foo.mp4?tag=12');
+
+        const result = await service.handleMessage(
+            {
+                type: 'downloadVideo',
+                mediaId: '123',
+            },
+            { tab: { id: 55 } as chrome.tabs.Tab },
+        );
+
+        expect(result).toEqual({
+            ok: true,
+            downloadId: 23,
+            url: 'https://video.twimg.com/ext_tw_video/123/pu/vid/1280x720/foo.mp4?tag=12',
+        });
+    });
+
+    it('should keep latest tracked videos even when no media id can be extracted', async () => {
+        const download = mock(async (_options: chrome.downloads.DownloadOptions) => 24);
+        const service = createService({ download });
+
+        service.trackVideoUrl(77, 'https://video.twimg.com/live_video_stream/source.mp4?tag=9');
+
+        const result = await service.handleMessage(
+            {
+                type: 'downloadVideo',
+                tweetId: 'tweet-77',
+            },
+            { tab: { id: 77 } as chrome.tabs.Tab },
+        );
+
+        expect(result).toEqual({
+            ok: true,
+            downloadId: 24,
+            url: 'https://video.twimg.com/live_video_stream/source.mp4?tag=9',
+        });
+    });
+
     it('should clear tracked tab videos', async () => {
         const service = createService();
 
