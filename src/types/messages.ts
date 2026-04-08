@@ -41,6 +41,19 @@ export type DownloadVideoMessage = {
     fallbackUrl?: string;
 };
 
+export type XGrokBulkExportProgressStage = 'started' | 'progress' | 'completed' | 'failed';
+
+type XGrokBulkExportProgressMessage = {
+    type: 'xGrokBulkExportProgress';
+    stage: XGrokBulkExportProgressStage;
+    discovered?: number;
+    attempted?: number;
+    exported?: number;
+    failed?: number;
+    remaining?: number;
+    message?: string;
+};
+
 export type RuntimeMessage =
     | LogMessage
     | GetLogsMessage
@@ -49,7 +62,8 @@ export type RuntimeMessage =
     | GetLastExportMessage
     | GetSettingsMessage
     | SaveSettingsMessage
-    | DownloadVideoMessage;
+    | DownloadVideoMessage
+    | XGrokBulkExportProgressMessage;
 
 export type RuntimeResponseMap = {
     log: { success: true };
@@ -60,6 +74,7 @@ export type RuntimeResponseMap = {
     getSettings: ExtensionSettings;
     saveSettings: { success: true };
     downloadVideo: { ok: true; downloadId: number; url: string } | { ok: false; error: string };
+    xGrokBulkExportProgress: { success: true };
 };
 
 export type RuntimeResponseFor<T extends RuntimeMessage> = T extends { type: infer K }

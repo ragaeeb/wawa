@@ -1,8 +1,10 @@
 import { describe, expect, it } from 'bun:test';
 import {
     isXGrokBulkExportMessage,
+    isXGrokClearAllMessage,
     normalizeXGrokBulkExportLimit,
     WAWA_X_GROK_BULK_EXPORT_MESSAGE,
+    WAWA_X_GROK_CLEAR_ALL_MESSAGE,
 } from '@/content/x-grok-contracts';
 
 describe('x-grok contracts', () => {
@@ -39,5 +41,18 @@ describe('x-grok contracts', () => {
                 limit: 5,
             }),
         ).toBe(true);
+    });
+
+    it('should accept clear-all messages', () => {
+        expect(
+            isXGrokClearAllMessage({
+                type: WAWA_X_GROK_CLEAR_ALL_MESSAGE,
+            }),
+        ).toBe(true);
+        expect(
+            isXGrokClearAllMessage({
+                type: WAWA_X_GROK_BULK_EXPORT_MESSAGE,
+            }),
+        ).toBe(false);
     });
 });

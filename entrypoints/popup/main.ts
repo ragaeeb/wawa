@@ -2,11 +2,12 @@ import {
     DEFAULT_X_GROK_BULK_EXPORT_LIMIT,
     normalizeXGrokBulkExportLimit,
     WAWA_X_GROK_BULK_EXPORT_MESSAGE,
+    WAWA_X_GROK_CLEAR_ALL_MESSAGE,
     X_GROK_BULK_EXPORT_LIMIT_STORAGE_KEY,
 } from '@/content/x-grok-contracts';
 import { sendRuntimeMessage } from '@/platform/chrome/runtime';
 import type { LogEntry } from '@/types/domain';
-import { persistGrokBulkLimitChange, runGrokBulkExport } from './grok-bulk-export';
+import { persistGrokBulkLimitChange, runGrokBulkExport, runGrokClearAll } from './grok-bulk-export';
 import './style.css';
 
 const elements = {
@@ -16,6 +17,10 @@ const elements = {
     clearLogs: document.getElementById('clearLogs') as HTMLButtonElement,
     grokBulkLimit: document.getElementById('grokBulkLimit') as HTMLInputElement,
     exportGrokChats: document.getElementById('exportGrokChats') as HTMLButtonElement,
+    showDeleteGrokChatsConfirm: document.getElementById('showDeleteGrokChatsConfirm') as HTMLButtonElement,
+    deleteGrokChatsConfirm: document.getElementById('deleteGrokChatsConfirm') as HTMLDivElement,
+    confirmDeleteGrokChats: document.getElementById('confirmDeleteGrokChats') as HTMLButtonElement,
+    cancelDeleteGrokChats: document.getElementById('cancelDeleteGrokChats') as HTMLButtonElement,
 };
 
 const getActiveTabId = async () => {
@@ -26,6 +31,11 @@ const getActiveTabId = async () => {
 const setStatus = (message: string, isError = false) => {
     elements.status.textContent = message;
     elements.status.dataset.state = isError ? 'error' : 'success';
+};
+
+const setDeleteConfirmationVisible = (visible: boolean) => {
+    elements.deleteGrokChatsConfirm.hidden = !visible;
+    elements.showDeleteGrokChatsConfirm.hidden = visible;
 };
 
 const loadBulkExportLimit = async () => {
@@ -103,6 +113,27 @@ const exportGrokChats = async (): Promise<void> => {
         setStatus,
         setBusy: (busy) => {
             elements.exportGrokChats.disabled = busy;
+            elements.showDeleteGrokChatsConfirm.disabled = busy;
+            elements.confirmDeleteGrokChats.disabled = busy;
+            elements.cancelDeleteGrokChats.disabled = busy;
+        },
+    });
+};
+
+const deleteGrokChats = async (): Promise<void> => {
+    await runGrokClearAll({
+        getActiveTabId,
+        sendTabMessage: (tabId) => {
+            return chrome.tabs.sendMessage(tabId, {
+                type: WAWA_X_GROK_CLEAR_ALL_MESSAGE,
+            });
+        },
+        setStatus,
+        setBusy: (busy) => {
+            elements.exportGrokChats.disabled = busy;
+            elements.showDeleteGrokChatsConfirm.disabled = busy;
+            elements.confirmDeleteGrokChats.disabled = busy;
+            elements.cancelDeleteGrokChats.disabled = busy;
         },
     });
 };
@@ -131,5 +162,21 @@ elements.exportGrokChats.addEventListener('click', () => {
     void exportGrokChats();
 });
 
+elements.showDeleteGrokChatsConfirm.addEventListener('click', () => {
+    setDeleteConfirmationVisible(true);
+    setStatus('Confirm to permanently delete all Grok chats.', true);
+});
+
+elements.cancelDeleteGrokChats.addEventListener('click', () => {
+    setDeleteConfirmationVisible(false);
+    setStatus('Delete all Grok chats cancelled.');
+});
+
+elements.confirmDeleteGrokChats.addEventListener('click', () => {
+    setDeleteConfirmationVisible(false);
+    void deleteGrokChats();
+});
+
 void loadBulkExportLimit();
+setDeleteConfirmationVisible(false);
 void loadLogs();

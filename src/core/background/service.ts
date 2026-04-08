@@ -28,6 +28,12 @@ type DownloadsAdapter = {
     download(options: chrome.downloads.DownloadOptions): Promise<number>;
 };
 
+type ActionApi = {
+    setBadgeText: (details: { text: string; tabId?: number }) => Promise<void> | void;
+    setBadgeBackgroundColor?: (details: { color: string; tabId?: number }) => Promise<void> | void;
+    setTitle?: (details: { title: string; tabId?: number }) => Promise<void> | void;
+};
+
 export type BackgroundService = {
     handleMessage(
         message: RuntimeMessage,
@@ -39,6 +45,21 @@ export type BackgroundService = {
 };
 
 const MAX_LOG_ENTRIES = 500;
+const ACTIVE_BADGE_COLOR = '#1d4ed8';
+const FAILED_BADGE_COLOR = '#b91c1c';
+
+const toBadgeCounterText = (value: number | undefined) => {
+    if (typeof value !== 'number' || !Number.isFinite(value) || value <= 0) {
+        return '';
+    }
+
+    const normalized = Math.floor(value);
+    if (normalized > 999) {
+        return '999+';
+    }
+
+    return String(normalized);
+};
 
 const getTabVideoStore = (videoStore: Map<number, TabVideoStore>, tabId: number) => {
     const existing = videoStore.get(tabId);
@@ -112,6 +133,7 @@ export const createBackgroundService = (
     downloads: DownloadsAdapter = {
         download: (options) => chrome.downloads.download(options),
     },
+    actionApi: ActionApi | null = chrome.action ?? null,
 ) => {
     const state: BackgroundState = {
         logs: [],
@@ -151,7 +173,48 @@ export const createBackgroundService = (
         return { success: true } as const;
     };
 
-    const handleBasicMessage = async (message: Exclude<RuntimeMessage, { type: 'saveSettings' | 'downloadVideo' }>) => {
+    const updateXGrokBulkExportBadge = async (
+        message: Extract<RuntimeMessage, { type: 'xGrokBulkExportProgress' }>,
+        sender?: chrome.runtime.MessageSender,
+    ) => {
+        const tabId = sender?.tab?.id;
+        if (!actionApi || typeof tabId !== 'number' || tabId < 0) {
+            return { success: true } as const;
+        }
+
+        if (message.stage === 'completed') {
+            await actionApi.setBadgeText({ text: '', tabId });
+            await actionApi.setTitle?.({
+                title: `Wawa: Chat export completed (${message.exported ?? 0}/${message.attempted ?? 0})`,
+                tabId,
+            });
+            return { success: true } as const;
+        }
+
+        if (message.stage === 'failed') {
+            await actionApi.setBadgeText({ text: '!', tabId });
+            await actionApi.setBadgeBackgroundColor?.({ color: FAILED_BADGE_COLOR, tabId });
+            await actionApi.setTitle?.({
+                title: `Wawa: Chat export failed${message.message ? ` - ${message.message}` : ''}`,
+                tabId,
+            });
+            return { success: true } as const;
+        }
+
+        const remainingText = toBadgeCounterText(message.remaining);
+        await actionApi.setBadgeText({ text: remainingText, tabId });
+        await actionApi.setBadgeBackgroundColor?.({ color: ACTIVE_BADGE_COLOR, tabId });
+        await actionApi.setTitle?.({
+            title: `Wawa: Exporting chats (${message.attempted ?? 0}/${message.discovered ?? 0})`,
+            tabId,
+        });
+        return { success: true } as const;
+    };
+
+    const handleBasicMessage = async (
+        message: Exclude<RuntimeMessage, { type: 'saveSettings' | 'downloadVideo' }>,
+        sender?: chrome.runtime.MessageSender,
+    ) => {
         if (message.type === 'log') {
             addLog(message.entry);
             return { success: true } as const;
@@ -181,6 +244,10 @@ export const createBackgroundService = (
 
         if (message.type === 'getSettings') {
             return getSettingsResponse();
+        }
+
+        if (message.type === 'xGrokBulkExportProgress') {
+            return updateXGrokBulkExportBadge(message, sender);
         }
 
         throw new Error(`Unsupported message type: ${String((message as { type?: unknown }).type)}`);
@@ -266,7 +333,7 @@ export const createBackgroundService = (
             return downloadVideo(message, sender);
         }
 
-        return handleBasicMessage(message);
+        return handleBasicMessage(message, sender);
     };
 
     return {

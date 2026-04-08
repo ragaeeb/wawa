@@ -11,6 +11,7 @@ const DEFAULT_DELAY_MS = 1_200;
 const DEFAULT_TIMEOUT_MS = 20_000;
 const MAX_429_RETRIES = 3;
 const DEFAULT_DETAIL_QUERY_ID_CANDIDATES = ['n2bhau0B2DSY6R_bLolgSg', '6QmFg', '9Hyh5D4-WXLnExZkONSkZg'] as const;
+const CLEAR_GROK_CONVERSATIONS_QUERY_ID = '83Gg0lfI-47Z3-ZOxyUjiQ';
 
 type RuntimeLoggers = {
     logInfo: (message: string, data?: unknown) => void;
@@ -56,6 +57,7 @@ type BulkExportInput = {
     loggers: RuntimeLoggers;
     onDownload: (conversation: XGrokConversationData, filename: string) => void;
     onProgress?: (state: {
+        stage: 'started' | 'progress' | 'completed';
         discovered: number;
         attempted: number;
         exported: number;
@@ -239,7 +241,7 @@ export const listXGrokConversations = async (input: RequestContext & { maxItems:
         const pageResult = fetchResult.pageResult;
         selectedHistoryQueryId = fetchResult.selectedHistoryQueryId;
 
-        if (!pageResult || !pageResult.ok) {
+        if (!pageResult?.ok) {
             warnings.push(
                 `X-Grok history request failed: status=${pageResult?.status ?? 0} message=${pageResult?.message ?? 'Unknown error'}`,
             );
@@ -326,6 +328,7 @@ export const runXGrokBulkExport = async (input: BulkExportInput): Promise<XGrokB
     let exported = 0;
     let failed = 0;
     input.onProgress?.({
+        stage: 'started',
         discovered: listResult.ids.length,
         attempted,
         exported,
@@ -354,6 +357,7 @@ export const runXGrokBulkExport = async (input: BulkExportInput): Promise<XGrokB
         }
 
         input.onProgress?.({
+            stage: 'progress',
             discovered: listResult.ids.length,
             attempted,
             exported,
@@ -362,7 +366,7 @@ export const runXGrokBulkExport = async (input: BulkExportInput): Promise<XGrokB
         });
     }
 
-    return {
+    const result = {
         discovered: listResult.ids.length,
         attempted,
         exported,
@@ -370,4 +374,47 @@ export const runXGrokBulkExport = async (input: BulkExportInput): Promise<XGrokB
         elapsedMs: requestContext.nowImpl() - startedAt,
         warnings: listResult.warnings,
     };
+
+    input.onProgress?.({
+        stage: 'completed',
+        discovered: result.discovered,
+        attempted: result.attempted,
+        exported: result.exported,
+        failed: result.failed,
+        remaining: 0,
+    });
+
+    return result;
+};
+
+export const clearXGrokConversations = async (
+    input: Pick<RequestContext, 'csrfToken' | 'fetchImpl' | 'language' | 'loggers'>,
+) => {
+    const response = await input.fetchImpl.call(
+        globalThis,
+        'https://x.com/i/api/graphql/83Gg0lfI-47Z3-ZOxyUjiQ/ClearGrokConversations',
+        {
+            method: 'POST',
+            credentials: 'include',
+            headers: buildXGrokRequestHeaders(input.csrfToken, input.language),
+            body: JSON.stringify({
+                variables: {},
+                queryId: CLEAR_GROK_CONVERSATIONS_QUERY_ID,
+            }),
+        },
+    );
+
+    if (!response.ok) {
+        const text = await response.text().catch(() => '');
+        input.loggers.logWarn('x-grok clear conversations request failed', {
+            status: response.status,
+            message: response.statusText,
+            body: text,
+        });
+        throw new Error(
+            text
+                ? `X returned ${response.status}: ${text.slice(0, 200)}`
+                : `X returned ${response.status}: ${response.statusText}`,
+        );
+    }
 };

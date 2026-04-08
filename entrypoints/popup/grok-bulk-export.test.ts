@@ -1,5 +1,5 @@
 import { describe, expect, it, mock } from 'bun:test';
-import { persistGrokBulkLimitChange, runGrokBulkExport } from './grok-bulk-export';
+import { persistGrokBulkLimitChange, runGrokBulkExport, runGrokClearAll } from './grok-bulk-export';
 
 describe('runGrokBulkExport', () => {
     it('should surface setup failures and always release the busy state', async () => {
@@ -52,6 +52,40 @@ describe('runGrokBulkExport', () => {
         });
 
         expect(setStatus).toHaveBeenCalledWith('No active tab found.', true);
+        expect(setBusy).toHaveBeenLastCalledWith(false);
+    });
+});
+
+describe('runGrokClearAll', () => {
+    it('should delete all chats and always release the busy state', async () => {
+        const setStatus = mock(() => {});
+        const setBusy = mock(() => {});
+
+        await runGrokClearAll({
+            getActiveTabId: async () => 99,
+            sendTabMessage: async () => ({ ok: true }),
+            setStatus,
+            setBusy,
+        });
+
+        expect(setStatus).toHaveBeenCalledWith('Deleting all Grok chats...');
+        expect(setStatus).toHaveBeenCalledWith('Deleted all Grok chats.');
+        expect(setBusy).toHaveBeenNthCalledWith(1, true);
+        expect(setBusy).toHaveBeenLastCalledWith(false);
+    });
+
+    it('should surface delete failures and always release the busy state', async () => {
+        const setStatus = mock(() => {});
+        const setBusy = mock(() => {});
+
+        await runGrokClearAll({
+            getActiveTabId: async () => 99,
+            sendTabMessage: async () => ({ ok: false, error: 'forbidden' }),
+            setStatus,
+            setBusy,
+        });
+
+        expect(setStatus).toHaveBeenCalledWith('Delete all chats failed: forbidden', true);
         expect(setBusy).toHaveBeenLastCalledWith(false);
     });
 });

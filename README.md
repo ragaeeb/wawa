@@ -5,7 +5,7 @@
 [![CI](https://github.com/ragaeeb/wawa/actions/workflows/ci.yml/badge.svg)](https://github.com/ragaeeb/wawa/actions/workflows/ci.yml)
 [![Release](https://github.com/ragaeeb/wawa/actions/workflows/release.yml/badge.svg)](https://github.com/ragaeeb/wawa/actions/workflows/release.yml)
 [![License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
-[![TypeScript](https://img.shields.io/badge/TypeScript-5.9-blue.svg)](https://www.typescriptlang.org/)
+[![TypeScript](https://img.shields.io/badge/TypeScript-6.0-blue.svg)](https://www.typescriptlang.org/)
 [![Bun](https://img.shields.io/badge/Bun-1.3.10-black.svg)](https://bun.sh)
 [![Chrome Web Store](https://img.shields.io/badge/Chrome-Extension-green.svg)](https://chrome.google.com/webstore)
 
@@ -15,7 +15,8 @@
 
 - 🔒 **100% Local**: All data stays on your device, never sent to external servers
 - 📊 **Complete Exports**: Captures replies and threads that official APIs miss
-- 💬 **X-Grok Chat Export**: Export the current `x.com/i/grok` conversation or bulk-export Grok chats locally
+- 💬 **X-Grok Chat Export**: Export the current `x.com/i/grok` conversation, bulk-export Grok chats locally, or clear all Grok chats with confirmation
+- 🧭 **Bulk Progress Badge**: Shows the remaining chat count on the extension badge while Grok bulk export runs
 - 🎬 **One-Click Video Downloads**: Adds a `Download` button beside detected X/Twitter videos
 - ⏸️ **Pause & Resume**: Export large accounts (25k+ tweets) with automatic resume capability
 - 🚦 **Rate Limit Aware**: Intelligent handling of Twitter's rate limits with auto-cooldowns
@@ -65,6 +66,9 @@ To export an X-Grok chat:
 1. **Navigate** to a conversation on `https://x.com/i/grok?conversation=...`
 2. **Click** the `Export Chat` button injected into the page to download the current conversation JSON
 3. **Open** the extension popup and use `Export Grok Chats` to bulk-export multiple Grok conversations
+4. **Use** `Delete All Grok Chats` in the popup if you want to clear every Grok conversation after confirming the warning prompt
+
+While bulk export is running, the extension badge shows the remaining chat count so you can see progress at a glance.
 
 To download a video:
 

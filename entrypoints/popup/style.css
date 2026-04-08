@@ -111,6 +111,30 @@ h2 {
     align-items: center;
 }
 
+.danger-actions {
+    margin-top: 12px;
+}
+
+.confirm-panel {
+    margin-top: 12px;
+    padding: 10px;
+    border-radius: 8px;
+    border: 1px solid #fecaca;
+    background: #fff1f2;
+}
+
+.confirm-copy {
+    margin: 0 0 10px;
+    font-size: 12px;
+    line-height: 1.45;
+    color: #881337;
+}
+
+.confirm-actions {
+    display: flex;
+    gap: 8px;
+}
+
 .text-input {
     width: 90px;
     border: 1px solid var(--border-color);
@@ -154,6 +178,24 @@ button.secondary {
 
 button.secondary:hover {
     background: #f8fafc;
+}
+
+button.danger {
+    background: #dc2626;
+}
+
+button.danger:hover {
+    background: #b91c1c;
+}
+
+button.danger.secondary {
+    background: #fff;
+    color: #b91c1c;
+    border-color: #fecaca;
+}
+
+button.danger.secondary:hover {
+    background: #fff5f5;
 }
 
 .log {

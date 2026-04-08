@@ -2,8 +2,10 @@ import type { RuntimeState } from '@/content/runtime-state';
 import { createXGrokButtonController, type XGrokButtonController } from '@/content/x-grok-button-controller';
 import {
     isXGrokBulkExportMessage,
+    isXGrokClearAllMessage,
     type XGrokBulkExportMessage,
     type XGrokBulkExportResponse,
+    type XGrokClearAllResponse,
 } from '@/content/x-grok-contracts';
 import { createXGrokFeature } from '@/content/x-grok-feature';
 
@@ -39,7 +41,7 @@ export type RuntimeXGrok = {
     handleSingleExport: () => Promise<void>;
     handleRuntimeMessage: (
         message: unknown,
-        sendResponse: (response: XGrokBulkExportResponse) => void,
+        sendResponse: (response: XGrokBulkExportResponse | XGrokClearAllResponse) => void,
     ) => boolean | undefined;
     dispose: () => void;
 };
@@ -127,17 +129,38 @@ export const createRuntimeXGrok = (input: CreateRuntimeXGrokInput): RuntimeXGrok
         return true;
     };
 
-    const handleRuntimeMessage = (message: unknown, sendResponse: (response: XGrokBulkExportResponse) => void) => {
-        if (!isXGrokBulkExportMessage(message)) {
-            return undefined;
+    const handleRuntimeMessage = (
+        message: unknown,
+        sendResponse: (response: XGrokBulkExportResponse | XGrokClearAllResponse) => void,
+    ) => {
+        if (input.state.isExporting || input.state.isXGrokExporting || input.state.isXGrokBulkExporting) {
+            if (isXGrokBulkExportMessage(message) || isXGrokClearAllMessage(message)) {
+                sendResponse({
+                    ok: false,
+                    error: 'Another export is already running in this tab.',
+                });
+                return false;
+            }
         }
 
-        if (input.state.isExporting || input.state.isXGrokExporting || input.state.isXGrokBulkExporting) {
-            sendResponse({
-                ok: false,
-                error: 'Another export is already running in this tab.',
-            });
-            return false;
+        if (isXGrokClearAllMessage(message)) {
+            input.state.isXGrokBulkExporting = true;
+            input.loggers.logInfo('Received popup request to clear all x-grok conversations');
+
+            void (async () => {
+                try {
+                    const response = await feature.clearAllConversations();
+                    sendResponse(response);
+                } finally {
+                    input.state.isXGrokBulkExporting = false;
+                }
+            })();
+
+            return true;
+        }
+
+        if (!isXGrokBulkExportMessage(message)) {
+            return undefined;
         }
 
         input.state.isXGrokBulkExporting = true;

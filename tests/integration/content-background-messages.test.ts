@@ -257,4 +257,102 @@ describe('background message integration', () => {
             error: 'No downloadable MP4 found yet. Play the video for a second and try again.',
         });
     });
+
+    it('should update the badge countdown for x-grok bulk export progress', async () => {
+        const actionApi = {
+            setBadgeText: async () => {},
+            setBadgeBackgroundColor: async () => {},
+            setTitle: async () => {},
+        };
+
+        const badgeCalls: Array<{ text: string; tabId?: number }> = [];
+        const colorCalls: Array<{ color: string; tabId?: number }> = [];
+        const titleCalls: Array<{ title: string; tabId?: number }> = [];
+
+        actionApi.setBadgeText = async (details) => {
+            badgeCalls.push(details);
+        };
+        actionApi.setBadgeBackgroundColor = async (details) => {
+            colorCalls.push(details);
+        };
+        actionApi.setTitle = async (details) => {
+            titleCalls.push(details);
+        };
+
+        const service = createBackgroundService(
+            {
+                async get() {
+                    return { minimalData: true, includeReplies: false, maxCount: 0 };
+                },
+                async set() {},
+            },
+            {
+                async download() {
+                    return 0;
+                },
+            },
+            actionApi,
+        );
+
+        const result = await service.handleMessage(
+            {
+                type: 'xGrokBulkExportProgress',
+                stage: 'progress',
+                discovered: 12,
+                attempted: 5,
+                exported: 4,
+                failed: 1,
+                remaining: 7,
+            },
+            { tab: { id: 42 } as chrome.tabs.Tab },
+        );
+
+        expect(result).toEqual({ success: true });
+        expect(badgeCalls).toEqual([{ text: '7', tabId: 42 }]);
+        expect(colorCalls).toEqual([{ color: '#1d4ed8', tabId: 42 }]);
+        expect(titleCalls).toEqual([{ title: 'Wawa: Exporting chats (5/12)', tabId: 42 }]);
+    });
+
+    it('should clear the badge when x-grok bulk export completes', async () => {
+        const badgeCalls: Array<{ text: string; tabId?: number }> = [];
+        const titleCalls: Array<{ title: string; tabId?: number }> = [];
+
+        const service = createBackgroundService(
+            {
+                async get() {
+                    return { minimalData: true, includeReplies: false, maxCount: 0 };
+                },
+                async set() {},
+            },
+            {
+                async download() {
+                    return 0;
+                },
+            },
+            {
+                setBadgeText: async (details) => {
+                    badgeCalls.push(details);
+                },
+                setTitle: async (details) => {
+                    titleCalls.push(details);
+                },
+            },
+        );
+
+        const result = await service.handleMessage(
+            {
+                type: 'xGrokBulkExportProgress',
+                stage: 'completed',
+                attempted: 12,
+                exported: 11,
+                failed: 1,
+                remaining: 0,
+            },
+            { tab: { id: 9 } as chrome.tabs.Tab },
+        );
+
+        expect(result).toEqual({ success: true });
+        expect(badgeCalls).toEqual([{ text: '', tabId: 9 }]);
+        expect(titleCalls).toEqual([{ title: 'Wawa: Chat export completed (11/12)', tabId: 9 }]);
+    });
 });

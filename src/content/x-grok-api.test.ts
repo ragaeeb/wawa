@@ -1,5 +1,10 @@
 import { describe, expect, it, mock } from 'bun:test';
-import { fetchXGrokConversationById, listXGrokConversations, runXGrokBulkExport } from '@/content/x-grok-api';
+import {
+    clearXGrokConversations,
+    fetchXGrokConversationById,
+    listXGrokConversations,
+    runXGrokBulkExport,
+} from '@/content/x-grok-api';
 
 const createLoggers = () => ({
     logInfo: mock(() => {}),
@@ -243,5 +248,24 @@ describe('x-grok api', () => {
         expect(result.warnings).toContain('X-Grok export failed for 111: disk full');
         expect(downloads).toHaveLength(1);
         expect(downloads[0]).toContain('Conversation_2');
+    });
+
+    it('should clear all conversations via the clear mutation', async () => {
+        const fetchImpl = mock(async (input: RequestInfo | URL, init?: RequestInit) => {
+            expect(String(input)).toBe('https://x.com/i/api/graphql/83Gg0lfI-47Z3-ZOxyUjiQ/ClearGrokConversations');
+            expect(init?.method).toBe('POST');
+            expect(init?.credentials).toBe('include');
+            expect(init?.body).toBe('{"variables":{},"queryId":"83Gg0lfI-47Z3-ZOxyUjiQ"}');
+            return new Response('{}', { status: 200 });
+        }) as unknown as typeof fetch;
+
+        await clearXGrokConversations({
+            csrfToken: 'csrf-token',
+            fetchImpl,
+            language: 'en-US',
+            loggers: createLoggers(),
+        });
+
+        expect(fetchImpl).toHaveBeenCalledTimes(1);
     });
 });

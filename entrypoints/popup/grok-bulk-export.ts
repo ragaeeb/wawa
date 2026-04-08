@@ -1,7 +1,10 @@
 import {
     isXGrokBulkExportMessage,
+    isXGrokClearAllMessage,
     WAWA_X_GROK_BULK_EXPORT_MESSAGE,
+    WAWA_X_GROK_CLEAR_ALL_MESSAGE,
     type XGrokBulkExportResponse,
+    type XGrokClearAllResponse,
 } from '@/content/x-grok-contracts';
 
 type BulkExportSuccessResponse = XGrokBulkExportResponse & { ok: true };
@@ -13,6 +16,13 @@ type BulkExportInput = {
     saveLimit: (value: number) => Promise<void>;
     getActiveTabId: () => Promise<number | null>;
     sendTabMessage: (tabId: number, limit: number) => Promise<XGrokBulkExportResponse | undefined>;
+    setStatus: (message: string, isError?: boolean) => void;
+    setBusy: (busy: boolean) => void;
+};
+
+type ClearAllInput = {
+    getActiveTabId: () => Promise<number | null>;
+    sendTabMessage: (tabId: number) => Promise<XGrokClearAllResponse | undefined>;
     setStatus: (message: string, isError?: boolean) => void;
     setBusy: (busy: boolean) => void;
 };
@@ -75,6 +85,42 @@ export const runGrokBulkExport = async (input: BulkExportInput): Promise<void> =
     } catch (error) {
         const message = error instanceof Error ? error.message : String(error);
         input.setStatus(`Bulk export failed: ${message}`, true);
+    } finally {
+        input.setBusy(false);
+    }
+};
+
+export const runGrokClearAll = async (input: ClearAllInput): Promise<void> => {
+    input.setBusy(true);
+
+    try {
+        const tabId = await input.getActiveTabId();
+        if (tabId === null) {
+            input.setStatus('No active tab found.', true);
+            return;
+        }
+
+        input.setStatus('Deleting all Grok chats...');
+
+        const message = {
+            type: WAWA_X_GROK_CLEAR_ALL_MESSAGE,
+        };
+        if (!isXGrokClearAllMessage(message)) {
+            throw new Error('Invalid Grok delete request.');
+        }
+
+        const response = await input.sendTabMessage(tabId);
+        if (!response) {
+            throw new Error('No response from the content script. Open an x.com tab and try again.');
+        }
+        if (!response.ok) {
+            throw new Error(response.error);
+        }
+
+        input.setStatus('Deleted all Grok chats.');
+    } catch (error) {
+        const message = error instanceof Error ? error.message : String(error);
+        input.setStatus(`Delete all chats failed: ${message}`, true);
     } finally {
         input.setBusy(false);
     }

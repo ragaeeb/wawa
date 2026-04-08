@@ -1,7 +1,7 @@
 import { describe, expect, it, mock } from 'bun:test';
 import { createRuntimeState } from '@/content/runtime-state';
 import { createRuntimeXGrok } from '@/content/runtime-x-grok';
-import { WAWA_X_GROK_BULK_EXPORT_MESSAGE } from '@/content/x-grok-contracts';
+import { WAWA_X_GROK_BULK_EXPORT_MESSAGE, WAWA_X_GROK_CLEAR_ALL_MESSAGE } from '@/content/x-grok-contracts';
 import type { XGrokFeature } from '@/content/x-grok-feature';
 
 const createFeature = (overrides: Partial<XGrokFeature> = {}): XGrokFeature => ({
@@ -10,6 +10,7 @@ const createFeature = (overrides: Partial<XGrokFeature> = {}): XGrokFeature => (
     observeInterceptedUrl: async () => {},
     exportCurrentConversation: async () => ({ filename: 'chat.json', conversation: {} as never }),
     handleBulkExportMessage: async () => ({ ok: true, result: {} as never }),
+    clearAllConversations: async () => ({ ok: true }),
     getObservedContext: () => null,
     ...overrides,
 });
@@ -276,5 +277,42 @@ describe('createRuntimeXGrok', () => {
             ok: false,
             error: 'Another export is already running in this tab.',
         });
+    });
+
+    it('should handle clear-all runtime messages and release the busy flag', async () => {
+        const input = createInput();
+        input.feature = createFeature({
+            clearAllConversations: async () => ({ ok: true }),
+        });
+        const runtime = createRuntimeXGrok({
+            state: input.state,
+            getLocationPathname: () => '/i/grok',
+            getLocationSearch: () => '',
+            getCsrfToken: () => 'csrf',
+            getLanguage: () => 'en-US',
+            downloadJson: mock(() => {}),
+            ensureInterception: input.ensureInterception,
+            removeMainButton: input.removeMainButton,
+            loggers: input.loggers,
+            implementations: {
+                createFeature: () => input.feature,
+                createButtonController: () => input.controller,
+                scheduleReset: input.scheduleReset,
+            },
+        });
+        const sendResponse = mock(() => {});
+
+        const handled = runtime.handleRuntimeMessage(
+            {
+                type: WAWA_X_GROK_CLEAR_ALL_MESSAGE,
+            },
+            sendResponse,
+        );
+
+        expect(handled).toBe(true);
+        await Promise.resolve();
+        await Promise.resolve();
+        expect(sendResponse).toHaveBeenCalledWith({ ok: true });
+        expect(input.state.isXGrokBulkExporting).toBe(false);
     });
 });

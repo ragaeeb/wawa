@@ -1,6 +1,12 @@
 import { beforeEach, describe, expect, it } from 'bun:test';
 import { bootstrapBackground } from '@/background/index';
 
+type ChromeMockControls = {
+    clearStorage: () => void;
+    triggerInstalled: () => void;
+    getBadgeState: (tabId?: number) => { text: string; color: string; title: string };
+};
+
 const testLogEntry = {
     timestamp: '2026-02-09T00:00:00.000Z',
     level: 'info' as const,
@@ -9,7 +15,7 @@ const testLogEntry = {
 
 describe('background bootstrap integration', () => {
     beforeEach(() => {
-        (globalThis as { __wawaChromeMock?: { clearStorage: () => void } }).__wawaChromeMock?.clearStorage();
+        (globalThis as { __wawaChromeMock?: ChromeMockControls }).__wawaChromeMock?.clearStorage();
     });
 
     it('should register handlers once and process runtime messages', async () => {
@@ -44,7 +50,7 @@ describe('background bootstrap integration', () => {
     it('should seed default settings on installed event', async () => {
         bootstrapBackground();
 
-        (globalThis as { __wawaChromeMock?: { triggerInstalled: () => void } }).__wawaChromeMock?.triggerInstalled();
+        (globalThis as { __wawaChromeMock?: ChromeMockControls }).__wawaChromeMock?.triggerInstalled();
 
         const settings = (await chrome.runtime.sendMessage({
             type: 'getSettings',

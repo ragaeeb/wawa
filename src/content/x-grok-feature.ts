@@ -1,12 +1,14 @@
-import { fetchXGrokConversationById, runXGrokBulkExport } from '@/content/x-grok-api';
+import { clearXGrokConversations, fetchXGrokConversationById, runXGrokBulkExport } from '@/content/x-grok-api';
 import { readStoredXGrokContext, writeStoredXGrokContext } from '@/content/x-grok-storage';
 import { captureXGrokGraphqlContext, isXGrokDetailUrl, isXGrokHistoryUrl } from '@/core/x-grok/context';
 import { formatXGrokFilename } from '@/core/x-grok/parser';
 import type { XGrokConversationData, XGrokGraphqlContext } from '@/core/x-grok/types';
+import { sendRuntimeMessage } from '@/platform/chrome/runtime';
 import {
     normalizeXGrokBulkExportLimit,
     type XGrokBulkExportMessage,
     type XGrokBulkExportResponse,
+    type XGrokClearAllResponse,
 } from './x-grok-contracts';
 import { readXGrokConversationIdFromSearch, shouldShowXGrokExportButton } from './x-grok-route';
 
@@ -28,7 +30,9 @@ type CreateXGrokFeatureInput = {
     writeStoredContext?: (context: XGrokGraphqlContext) => Promise<void>;
     fetchConversationById?: typeof fetchXGrokConversationById;
     runBulkExport?: typeof runXGrokBulkExport;
+    clearAllConversationsRequest?: typeof clearXGrokConversations;
     nowImpl?: () => number;
+    sendRuntimeMessage?: typeof sendRuntimeMessage;
 };
 
 type ExportKind = 'single' | 'bulk';
@@ -49,6 +53,7 @@ export type XGrokFeature = {
     observeInterceptedUrl: (url: string) => Promise<void>;
     exportCurrentConversation: () => Promise<{ filename: string; conversation: XGrokConversationData }>;
     handleBulkExportMessage: (message: XGrokBulkExportMessage) => Promise<XGrokBulkExportResponse>;
+    clearAllConversations: () => Promise<XGrokClearAllResponse>;
     getObservedContext: () => XGrokGraphqlContext | null;
 };
 
@@ -107,7 +112,9 @@ export const createXGrokFeature = (input: CreateXGrokFeatureInput): XGrokFeature
     const writeContext = input.writeStoredContext ?? writeStoredXGrokContext;
     const fetchConversation = input.fetchConversationById ?? fetchXGrokConversationById;
     const runBulkExport = input.runBulkExport ?? runXGrokBulkExport;
+    const clearAllConversationsRequest = input.clearAllConversationsRequest ?? clearXGrokConversations;
     const nowImpl = input.nowImpl ?? Date.now;
+    const sendMessage = input.sendRuntimeMessage ?? sendRuntimeMessage;
 
     let observedContext: XGrokGraphqlContext | null = null;
 
@@ -177,6 +184,26 @@ export const createXGrokFeature = (input: CreateXGrokFeatureInput): XGrokFeature
     };
 
     const handleBulkExportMessage = async (message: XGrokBulkExportMessage): Promise<XGrokBulkExportResponse> => {
+        const reportProgress = (progress: {
+            stage: 'started' | 'progress' | 'completed';
+            discovered: number;
+            attempted: number;
+            exported: number;
+            failed: number;
+            remaining: number;
+        }) => {
+            input.loggers.logInfo('x-grok bulk export progress', progress);
+            void sendMessage({
+                type: 'xGrokBulkExportProgress',
+                stage: progress.stage,
+                discovered: progress.discovered,
+                attempted: progress.attempted,
+                exported: progress.exported,
+                failed: progress.failed,
+                remaining: progress.remaining,
+            }).catch(() => {});
+        };
+
         try {
             const csrfToken = input.getCsrfToken();
             if (!csrfToken) {
@@ -204,15 +231,41 @@ export const createXGrokFeature = (input: CreateXGrokFeatureInput): XGrokFeature
                         buildExportPayload(conversation, 'bulk', new Date(nowImpl()).toISOString()),
                     );
                 },
-                onProgress: (state) => {
-                    input.loggers.logInfo('x-grok bulk export progress', state);
-                },
+                onProgress: reportProgress,
             });
 
             return { ok: true, result };
         } catch (error) {
             const messageText = error instanceof Error ? error.message : String(error);
             input.loggers.logError('x-grok bulk export failed', { error: messageText });
+            void sendMessage({
+                type: 'xGrokBulkExportProgress',
+                stage: 'failed',
+                message: messageText,
+            }).catch(() => {});
+            return { ok: false, error: messageText };
+        }
+    };
+
+    const clearAllConversations = async (): Promise<XGrokClearAllResponse> => {
+        try {
+            const csrfToken = input.getCsrfToken();
+            if (!csrfToken) {
+                throw new Error('Could not find the X csrf token for x-grok deletion.');
+            }
+
+            await clearAllConversationsRequest({
+                csrfToken,
+                fetchImpl: fetch,
+                language: input.getLanguage(),
+                loggers: input.loggers,
+            });
+
+            input.loggers.logInfo('Cleared all x-grok conversations');
+            return { ok: true };
+        } catch (error) {
+            const messageText = error instanceof Error ? error.message : String(error);
+            input.loggers.logError('x-grok clear conversations failed', { error: messageText });
             return { ok: false, error: messageText };
         }
     };
@@ -223,6 +276,7 @@ export const createXGrokFeature = (input: CreateXGrokFeatureInput): XGrokFeature
         observeInterceptedUrl,
         exportCurrentConversation,
         handleBulkExportMessage,
+        clearAllConversations,
         getObservedContext: () => observedContext,
     };
 };

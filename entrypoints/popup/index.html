@@ -24,6 +24,16 @@
           <input id="grokBulkLimit" class="text-input" type="number" min="0" step="1" value="100" />
           <button id="exportGrokChats" type="button">Export Grok Chats</button>
         </div>
+        <div class="danger-actions">
+          <button id="showDeleteGrokChatsConfirm" class="danger secondary" type="button">Delete All Grok Chats</button>
+        </div>
+        <div id="deleteGrokChatsConfirm" class="confirm-panel" hidden>
+          <p class="confirm-copy">This permanently clears every Grok chat on your X account. This cannot be undone.</p>
+          <div class="confirm-actions">
+            <button id="confirmDeleteGrokChats" class="danger" type="button">Yes, Delete All</button>
+            <button id="cancelDeleteGrokChats" class="secondary" type="button">Cancel</button>
+          </div>
+        </div>
       </section>
 
       <h2>Debug Logs</h2>

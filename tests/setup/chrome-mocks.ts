@@ -9,6 +9,11 @@ type InstalledListener = () => void;
 const storageState = new Map<string, unknown>();
 const runtimeListeners = new Set<RuntimeListener>();
 const installedListeners = new Set<InstalledListener>();
+const badgeTextByTab = new Map<number, string>();
+const badgeBackgroundColorByTab = new Map<number, string>();
+const badgeTitleByTab = new Map<number, string>();
+
+const resolveTabKey = (tabId?: number) => tabId ?? -1;
 
 const chromeMock: typeof chrome = {
     runtime: {
@@ -52,6 +57,17 @@ const chromeMock: typeof chrome = {
             });
         },
     } as typeof chrome.runtime,
+    action: {
+        async setBadgeText(details) {
+            badgeTextByTab.set(resolveTabKey(details.tabId), details.text);
+        },
+        async setBadgeBackgroundColor(details) {
+            badgeBackgroundColorByTab.set(resolveTabKey(details.tabId), String(details.color));
+        },
+        async setTitle(details) {
+            badgeTitleByTab.set(resolveTabKey(details.tabId), details.title);
+        },
+    } as typeof chrome.action,
     storage: {
         local: {
             get(
@@ -121,11 +137,24 @@ Object.defineProperty(globalThis, 'chrome', {
 
 Object.defineProperty(globalThis, '__wawaChromeMock', {
     value: {
-        clearStorage: () => storageState.clear(),
+        clearStorage: () => {
+            storageState.clear();
+            badgeTextByTab.clear();
+            badgeBackgroundColorByTab.clear();
+            badgeTitleByTab.clear();
+        },
         triggerInstalled: () => {
             installedListeners.forEach((listener) => {
                 listener();
             });
+        },
+        getBadgeState: (tabId?: number) => {
+            const key = resolveTabKey(tabId);
+            return {
+                text: badgeTextByTab.get(key) ?? '',
+                color: badgeBackgroundColorByTab.get(key) ?? '',
+                title: badgeTitleByTab.get(key) ?? '',
+            };
         },
     },
     configurable: true,

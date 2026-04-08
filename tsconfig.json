@@ -3,13 +3,15 @@
     "compilerOptions": {
         "baseUrl": ".",
         "paths": {
-            "@/*": ["src/*"]
+            "@/*": ["./src/*"]
         },
         "strict": true,
         "exactOptionalPropertyTypes": true,
         "noImplicitOverride": true,
         "useUnknownInCatchVariables": true,
-        "lib": ["ESNext", "DOM", "DOM.Iterable"]
+        "lib": ["ESNext", "DOM", "DOM.Iterable"],
+        "types": ["bun", "chrome"],
+        "ignoreDeprecations": "6.0"
     },
     "include": [
         "entrypoints/**/*.ts",

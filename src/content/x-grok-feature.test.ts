@@ -3,12 +3,16 @@ import { WAWA_X_GROK_BULK_EXPORT_MESSAGE } from '@/content/x-grok-contracts';
 import { createXGrokFeature } from '@/content/x-grok-feature';
 import type { XGrokConversationData } from '@/core/x-grok/types';
 
+type SendRuntimeMessage = typeof import('@/platform/chrome/runtime').sendRuntimeMessage;
+
 const createLoggers = () => ({
     logInfo: mock(() => {}),
     logDebug: mock(() => {}),
     logWarn: mock(() => {}),
     logError: mock(() => {}),
 });
+
+const createSendRuntimeMessageMock = () => mock(async () => ({ success: true })) as unknown as SendRuntimeMessage;
 
 const buildConversation = (conversationId: string): XGrokConversationData => ({
     title: 'Stored Title',
@@ -176,9 +180,44 @@ describe('x-grok feature', () => {
 
     it('should bulk export and wrap downloads with compatibility metadata', async () => {
         const downloadJson = mock(() => {});
+        const sendRuntimeMessage = createSendRuntimeMessageMock();
         const runBulkExport = mock(
-            async (input: { onDownload: (conversation: XGrokConversationData, filename: string) => void }) => {
+            async (input: {
+                onDownload: (conversation: XGrokConversationData, filename: string) => void;
+                onProgress: (state: {
+                    stage: 'started' | 'progress' | 'completed';
+                    discovered: number;
+                    attempted: number;
+                    exported: number;
+                    failed: number;
+                    remaining: number;
+                }) => void;
+            }) => {
+                input.onProgress({
+                    stage: 'started',
+                    discovered: 1,
+                    attempted: 0,
+                    exported: 0,
+                    failed: 0,
+                    remaining: 1,
+                });
                 input.onDownload(buildConversation('111'), 'Stored_Title_2026-03-05_00-00-01');
+                input.onProgress({
+                    stage: 'progress',
+                    discovered: 1,
+                    attempted: 1,
+                    exported: 1,
+                    failed: 0,
+                    remaining: 0,
+                });
+                input.onProgress({
+                    stage: 'completed',
+                    discovered: 1,
+                    attempted: 1,
+                    exported: 1,
+                    failed: 0,
+                    remaining: 0,
+                });
                 return {
                     discovered: 1,
                     attempted: 1,
@@ -201,6 +240,7 @@ describe('x-grok feature', () => {
                 updatedAt: 10,
             }),
             runBulkExport: runBulkExport as typeof import('@/content/x-grok-api').runXGrokBulkExport,
+            sendRuntimeMessage,
             loggers: createLoggers(),
             nowImpl: () => 2000,
         });
@@ -217,5 +257,92 @@ describe('x-grok feature', () => {
         expect(filename.endsWith('.json')).toBeTrue();
         expect(filename).toContain('Stored_Title');
         expect((payload.__blackiya as { exportMeta?: { exportKind?: string } }).exportMeta?.exportKind).toBe('bulk');
+        expect(sendRuntimeMessage).toHaveBeenCalledWith({
+            type: 'xGrokBulkExportProgress',
+            stage: 'started',
+            discovered: 1,
+            attempted: 0,
+            exported: 0,
+            failed: 0,
+            remaining: 1,
+        });
+        expect(sendRuntimeMessage).toHaveBeenCalledWith({
+            type: 'xGrokBulkExportProgress',
+            stage: 'completed',
+            discovered: 1,
+            attempted: 1,
+            exported: 1,
+            failed: 0,
+            remaining: 0,
+        });
+    });
+
+    it('should report failed bulk export progress to the background badge handler', async () => {
+        const sendRuntimeMessage = createSendRuntimeMessageMock();
+        const feature = createXGrokFeature({
+            getLocationPathname: () => '/home',
+            getLocationSearch: () => '',
+            getCsrfToken: () => 'csrf',
+            getLanguage: () => 'en-US',
+            downloadJson: mock(() => {}),
+            runBulkExport: mock(async () => {
+                throw new Error('boom');
+            }) as typeof import('@/content/x-grok-api').runXGrokBulkExport,
+            sendRuntimeMessage,
+            loggers: createLoggers(),
+            nowImpl: () => 2000,
+        });
+
+        const response = await feature.handleBulkExportMessage({
+            type: WAWA_X_GROK_BULK_EXPORT_MESSAGE,
+        });
+
+        expect(response).toEqual({ ok: false, error: 'boom' });
+        expect(sendRuntimeMessage).toHaveBeenCalledWith({
+            type: 'xGrokBulkExportProgress',
+            stage: 'failed',
+            message: 'boom',
+        });
+    });
+
+    it('should clear all conversations through the x-grok mutation', async () => {
+        const clearAllConversationsRequest = mock(async () => {});
+        const feature = createXGrokFeature({
+            getLocationPathname: () => '/i/grok',
+            getLocationSearch: () => '',
+            getCsrfToken: () => 'csrf',
+            getLanguage: () => 'en-US',
+            downloadJson: mock(() => {}),
+            clearAllConversationsRequest,
+            loggers: createLoggers(),
+        });
+
+        const response = await feature.clearAllConversations();
+
+        expect(response).toEqual({ ok: true });
+        expect(clearAllConversationsRequest).toHaveBeenCalledWith(
+            expect.objectContaining({
+                csrfToken: 'csrf',
+                language: 'en-US',
+            }),
+        );
+    });
+
+    it('should surface clear-all failures', async () => {
+        const feature = createXGrokFeature({
+            getLocationPathname: () => '/i/grok',
+            getLocationSearch: () => '',
+            getCsrfToken: () => 'csrf',
+            getLanguage: () => 'en-US',
+            downloadJson: mock(() => {}),
+            clearAllConversationsRequest: mock(async () => {
+                throw new Error('delete boom');
+            }) as typeof import('@/content/x-grok-api').clearXGrokConversations,
+            loggers: createLoggers(),
+        });
+
+        const response = await feature.clearAllConversations();
+
+        expect(response).toEqual({ ok: false, error: 'delete boom' });
     });
 });
